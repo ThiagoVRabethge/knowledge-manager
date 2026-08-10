@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Search, FileText, Folder, Trash2, Menu, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -8,6 +8,7 @@ import { CreateFolderDialog } from "./CreateFolderDialog";
 import { CreateNoteDialog } from "./CreateNoteDialog";
 import { ThemeToggle } from "./ThemeToggle";
 import { ExportButton } from "./ExportButton";
+import { GithubSyncButton } from "./GithubSyncButton";
 import { FolderTree, Note } from "@/types";
 import { cn } from "@/lib/utils";
 
@@ -36,27 +37,29 @@ export function Sidebar({
   const [searchResults, setSearchResults] = useState<Note[]>([]);
   const [searching, setSearching] = useState(false);
 
-  const handleSearch = async (q: string) => {
-    setSearch(q);
-    if (q.trim().length < 2) {
+  useEffect(() => {
+    if (search.trim().length < 2) {
       setSearchResults([]);
       return;
     }
-    setSearching(true);
-    try {
-      const results = await onSearch(q);
-      setSearchResults(results);
-    } finally {
-      setSearching(false);
-    }
-  };
+    const timer = setTimeout(async () => {
+      setSearching(true);
+      try {
+        const results = await onSearch(search);
+        setSearchResults(results);
+      } finally {
+        setSearching(false);
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [search, onSearch]);
 
   const showSearch = search.trim().length >= 2;
 
-  const handleSelect = (noteId: string) => {
+  const handleSelect = useCallback((noteId: string) => {
     onSelectNote(noteId);
     onMobileClose();
-  };
+  }, [onSelectNote, onMobileClose]);
 
   const sidebarContent = (
     <>
@@ -64,6 +67,7 @@ export function Sidebar({
         <h1 className="text-sm font-semibold tracking-tight">Knowledge</h1>
         <div className="flex items-center gap-1">
           <ExportButton />
+          <GithubSyncButton />
           <ThemeToggle />
           <button
             onClick={onMobileClose}
@@ -82,7 +86,7 @@ export function Sidebar({
             placeholder="Buscar notas..."
             className="pl-9 h-9 bg-muted/50 border-0"
             value={search}
-            onChange={(e) => handleSearch(e.target.value)}
+            onChange={(e) => setSearch(e.target.value)}
           />
         </div>
       </div>
@@ -174,12 +178,9 @@ export function Sidebar({
 
   return (
     <>
-      {/* Desktop sidebar */}
       <div className="hidden lg:flex flex-col h-full w-72 border-r bg-card">
         {sidebarContent}
       </div>
-
-      {/* Mobile overlay */}
       {mobileOpen && (
         <div className="fixed inset-0 z-50 lg:hidden">
           <div className="absolute inset-0 bg-black/50" onClick={onMobileClose} />

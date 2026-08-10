@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { useFolders } from "@/hooks/useFolders";
 import { useNotes } from "@/hooks/useNotes";
 import { useAuth } from "@/contexts/AuthContext";
@@ -6,6 +6,7 @@ import { Sidebar } from "@/components/Sidebar";
 import { NoteEditor } from "@/components/NoteEditor";
 import { LoginScreen } from "@/components/LoginScreen";
 import { MobileConnections } from "@/components/MobileConnections";
+import { GithubSyncButton } from "@/components/GithubSyncButton";
 import { Note } from "@/types";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { FileText, Link2, Menu, LogOut } from "lucide-react";
@@ -30,11 +31,8 @@ export default function App() {
   const handleToggleExpand = useCallback((id: string) => {
     setExpandedIds((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
-      } else {
-        next.add(id);
-      }
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
       return next;
     });
   }, []);
@@ -49,48 +47,52 @@ export default function App() {
   }, [getNote, getLinks, getBacklinks]);
 
   const handleNavigateByTitle = useCallback(async (title: string) => {
+    const found = notes.find((n) => n.title.toLowerCase() === title.toLowerCase());
+    if (found) {
+      await handleSelectNote(found.id);
+      return;
+    }
     const res = await fetch(`${API_URL}/notes`, {
       headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
     });
     const allNotes: Note[] = await res.json();
-    const found = allNotes.find((n) => n.title.toLowerCase() === title.toLowerCase());
-    if (found) {
-      await handleSelectNote(found.id);
+    const remoteFound = allNotes.find((n) => n.title.toLowerCase() === title.toLowerCase());
+    if (remoteFound) {
+      await handleSelectNote(remoteFound.id);
     }
-  }, [handleSelectNote]);
+  }, [notes, handleSelectNote]);
 
-  const handleSaveNote = async (id: string, updates: Partial<Note>) => {
-    await updateNote(id, updates);
-    await refreshNotes();
-    await refresh();
-    const updated = await getNote(id);
+  const handleSaveNote = useCallback(async (id: string, updates: Partial<Note>) => {
+    const updated = await updateNote(id, updates);
     setCurrentNote(updated);
     const [l, b] = await Promise.all([getLinks(id), getBacklinks(id)]);
     setLinks({ links: l, backlinks: b });
-  };
+  }, [updateNote, getLinks, getBacklinks]);
 
-  const handleCreateNote = async (title: string, content: string, folderId?: string) => {
+  const handleCreateNote = useCallback(async (title: string, content: string, folderId?: string) => {
     const note = await createNote(title, content, folderId);
     await refresh();
     await handleSelectNote(note.id);
-  };
+  }, [createNote, refresh, handleSelectNote]);
 
-  const handleDeleteNote = async (id: string) => {
+  const handleDeleteNote = useCallback(async (id: string) => {
     await deleteNote(id);
     await refresh();
     if (selectedNoteId === id) {
       setSelectedNoteId(undefined);
       setCurrentNote(null);
     }
-  };
+  }, [deleteNote, refresh, selectedNoteId]);
 
-  const handleCreateFolder = async (name: string, parentId?: string) => {
+  const handleCreateFolder = useCallback(async (name: string, parentId?: string) => {
     await createFolder(name, parentId);
-  };
+  }, [createFolder]);
 
-  const handleDeleteFolder = async (id: string) => {
+  const handleDeleteFolder = useCallback(async (id: string) => {
     await deleteFolder(id);
-  };
+  }, [deleteFolder]);
+
+  const allNotes = useMemo(() => notes, [notes]);
 
   if (!user) {
     return <LoginScreen onLogin={login} onRegister={register} />;
@@ -118,7 +120,6 @@ export default function App() {
         {currentNote ? (
           <div className="flex h-full">
             <div className="flex-1 min-w-0 flex flex-col">
-              {/* Mobile header */}
               <div className="lg:hidden flex items-center justify-between gap-2 px-4 py-2 border-b">
                 <div className="flex items-center gap-2 min-w-0">
                   <Button
@@ -132,6 +133,7 @@ export default function App() {
                   <span className="text-sm font-medium truncate">{currentNote.title}</span>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
+                  <GithubSyncButton />
                   <Button
                     variant="ghost"
                     size="icon"
@@ -157,20 +159,23 @@ export default function App() {
                   note={currentNote}
                   onSave={handleSaveNote}
                   onLinkClick={handleNavigateByTitle}
+                  allNotes={allNotes}
                 />
               </div>
             </div>
 
-            {/* Desktop connections panel */}
             <div className="w-64 border-l bg-card hidden lg:flex flex-col">
               <div className="px-4 py-3 border-b flex items-center justify-between">
                 <h3 className="text-sm font-semibold tracking-tight flex items-center gap-2">
                   <Link2 className="h-4 w-4" />
                   Conexões
                 </h3>
-                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={logout} title="Sair">
-                  <LogOut className="h-3.5 w-3.5" />
-                </Button>
+                <div className="flex items-center gap-1">
+                  <GithubSyncButton />
+                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={logout} title="Sair">
+                    <LogOut className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
               </div>
               <ScrollArea className="flex-1">
                 <div className="p-4 space-y-4">
@@ -244,7 +249,6 @@ export default function App() {
         )}
       </div>
 
-      {/* Mobile connections bottom sheet */}
       {mobileConnectionsOpen && (
         <MobileConnections
           links={links.links}

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Save, Eye, Pencil, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -11,15 +11,18 @@ interface Props {
   note: Note;
   onSave: (id: string, updates: Partial<Note>) => Promise<void>;
   onLinkClick?: (title: string) => void;
+  allNotes: Note[];
 }
 
-export function NoteEditor({ note, onSave, onLinkClick }: Props) {
+export function NoteEditor({ note, onSave, onLinkClick, allNotes }: Props) {
   const [title, setTitle] = useState(note.title);
   const [content, setContent] = useState(note.content);
   const [mode, setMode] = useState<"edit" | "preview">("edit");
   const [saving, setSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState(note.updated_at);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const onSaveRef = useRef(onSave);
+  onSaveRef.current = onSave;
 
   useEffect(() => {
     setTitle(note.title);
@@ -27,7 +30,21 @@ export function NoteEditor({ note, onSave, onLinkClick }: Props) {
     setLastSaved(note.updated_at);
   }, [note.id]);
 
-  const handleSave = useCallback(async () => {
+  useEffect(() => {
+    if (title === note.title && content === note.content) return;
+    const timer = setTimeout(async () => {
+      setSaving(true);
+      try {
+        await onSaveRef.current(note.id, { title, content });
+        setLastSaved(new Date().toISOString());
+      } finally {
+        setSaving(false);
+      }
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, [title, content, note.id, note.title, note.content]);
+
+  const handleManualSave = useCallback(async () => {
     if (title === note.title && content === note.content) return;
     setSaving(true);
     try {
@@ -38,14 +55,7 @@ export function NoteEditor({ note, onSave, onLinkClick }: Props) {
     }
   }, [note.id, title, content, note.title, note.content, onSave]);
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      handleSave();
-    }, 2000);
-    return () => clearTimeout(timer);
-  }, [title, content, handleSave]);
-
-  const handleInsertAI = (text: string) => {
+  const handleInsertAI = useCallback((text: string) => {
     const ta = textareaRef.current;
     if (!ta) {
       setContent((prev) => prev + "\n\n" + text);
@@ -61,7 +71,7 @@ export function NoteEditor({ note, onSave, onLinkClick }: Props) {
       ta.setSelectionRange(newPos, newPos);
       ta.focus();
     }, 0);
-  };
+  }, [content]);
 
   const formatDate = (d: string) => {
     return new Date(d).toLocaleString("pt-BR", {
@@ -107,7 +117,7 @@ export function NoteEditor({ note, onSave, onLinkClick }: Props) {
               <span className="hidden sm:inline">Visualizar</span>
             </Button>
           </div>
-          <Button size="sm" className="h-7" onClick={handleSave} disabled={saving}>
+          <Button size="sm" className="h-7" onClick={handleManualSave} disabled={saving}>
             <Save className="h-3.5 w-3.5 sm:mr-1.5" />
             <span className="hidden sm:inline">Salvar</span>
           </Button>
@@ -131,6 +141,7 @@ export function NoteEditor({ note, onSave, onLinkClick }: Props) {
               textareaRef={textareaRef}
               content={content}
               onSelect={setContent}
+              allNotes={allNotes}
             />
           </>
         ) : (

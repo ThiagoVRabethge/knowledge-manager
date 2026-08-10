@@ -1,38 +1,21 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { FileText } from "lucide-react";
 import { Note } from "@/types";
-import { API_URL } from "@/lib/utils";
 
 interface Props {
   textareaRef: React.RefObject<HTMLTextAreaElement>;
   content: string;
   onSelect: (newContent: string) => void;
+  allNotes: Note[];
 }
 
 const WIKI_LINK_REGEX = /\[\[((?:[^\]]|\](?!\]))*)$/;
 
-export function WikiAutocomplete({ textareaRef, content, onSelect }: Props) {
+export function WikiAutocomplete({ textareaRef, content, onSelect, allNotes }: Props) {
   const [suggestions, setSuggestions] = useState<Note[]>([]);
   const [visible, setVisible] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [position, setPosition] = useState({ top: 0, left: 0 });
-  const allNotesRef = useRef<Note[]>([]);
-
-  useEffect(() => {
-    const token = localStorage.getItem("token");
-    fetch(`${API_URL}/notes`, {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-    })
-      .then((r) => r.json())
-      .then((data) => {
-        if (Array.isArray(data)) {
-          allNotesRef.current = data;
-        } else {
-          allNotesRef.current = [];
-        }
-      })
-      .catch(() => { allNotesRef.current = []; });
-  }, []);
 
   const getCursorPosition = useCallback(() => {
     const ta = textareaRef.current;
@@ -77,18 +60,11 @@ export function WikiAutocomplete({ textareaRef, content, onSelect }: Props) {
       const cursor = ta.selectionStart;
       const text = ta.value;
       const beforeCursor = text.substring(0, cursor);
-
       const match = beforeCursor.match(WIKI_LINK_REGEX);
 
       if (match) {
         const search = match[1] || "";
-        const notes = allNotesRef.current;
-        if (!Array.isArray(notes)) {
-          setVisible(false);
-          return;
-        }
-
-        const filtered = notes
+        const filtered = allNotes
           .filter((n) => n.title.toLowerCase().includes(search.toLowerCase()))
           .slice(0, 8);
 
@@ -108,7 +84,6 @@ export function WikiAutocomplete({ textareaRef, content, onSelect }: Props) {
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!visible) return;
-
       if (e.key === "ArrowDown") {
         e.preventDefault();
         setSelectedIndex((i) => (i + 1) % suggestions.length);
@@ -131,23 +106,19 @@ export function WikiAutocomplete({ textareaRef, content, onSelect }: Props) {
       ta.removeEventListener("input", handleInput);
       ta.removeEventListener("keydown", handleKeyDown);
     };
-  }, [textareaRef, visible, suggestions, selectedIndex, getCursorPosition]);
+  }, [textareaRef, visible, suggestions, selectedIndex, getCursorPosition, allNotes]);
 
   const insertWikiLink = (title: string) => {
     const ta = textareaRef.current;
     if (!ta) return;
-
     const cursor = ta.selectionStart;
     const text = ta.value;
     const beforeCursor = text.substring(0, cursor);
-
     const lastOpen = beforeCursor.lastIndexOf("[[");
     if (lastOpen === -1) return;
-
     const newText = text.substring(0, lastOpen) + `[[${title}]]` + text.substring(cursor);
     onSelect(newText);
     setVisible(false);
-
     setTimeout(() => {
       const newCursor = lastOpen + title.length + 4;
       ta.setSelectionRange(newCursor, newCursor);

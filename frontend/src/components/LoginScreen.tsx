@@ -1,7 +1,9 @@
-import { useState } from "react";
-import { BookOpen, Eye, EyeOff } from "lucide-react";
+import { useState, useEffect } from "react";
+import { BookOpen, Eye, EyeOff, Github } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { API_URL } from "@/lib/utils";
+import { useGithubAuth } from "@/hooks/useGithubAuth";
 
 interface Props {
   onLogin: (email: string, password: string) => Promise<void>;
@@ -15,6 +17,35 @@ export function LoginScreen({ onLogin, onRegister }: Props) {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const { ready, redirectToGithub, getCodeFromUrl, clearCodeFromUrl } = useGithubAuth();
+
+  // Captura code do GitHub OAuth callback (apenas para LOGIN, não para sync popup)
+  useEffect(() => {
+    // Se for um popup de sync, não processa aqui (useGithubPopup.ts cuida disso)
+    if (window.opener) return;
+
+    const code = getCodeFromUrl();
+    if (!code) return;
+    clearCodeFromUrl();
+    setLoading(true);
+    setError("");
+    fetch(`${API_URL}/auth/github`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code }),
+    })
+      .then(async (res) => {
+        if (!res.ok) {
+          const err = await res.json();
+          throw new Error(err.detail || "GitHub login failed");
+        }
+        const data = await res.json();
+        localStorage.setItem("token", data.access_token);
+        window.location.reload();
+      })
+      .catch((err) => setError(err.message || "Falha no login com GitHub"))
+      .finally(() => setLoading(false));
+  }, [getCodeFromUrl, clearCodeFromUrl]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -83,6 +114,25 @@ export function LoginScreen({ onLogin, onRegister }: Props) {
             {loading ? "Carregando..." : isLogin ? "Entrar" : "Criar conta"}
           </Button>
         </form>
+
+        <div className="relative">
+          <div className="absolute inset-0 flex items-center">
+            <span className="w-full border-t" />
+          </div>
+          <div className="relative flex justify-center text-xs uppercase">
+            <span className="bg-background px-2 text-muted-foreground">ou</span>
+          </div>
+        </div>
+
+        <Button
+          variant="outline"
+          className="w-full h-11 gap-2"
+          onClick={redirectToGithub}
+          disabled={!ready || loading}
+        >
+          <Github className="h-4 w-4" />
+          {loading ? "Carregando..." : "Entrar com GitHub"}
+        </Button>
 
         <p className="text-center text-sm text-muted-foreground">
           {isLogin ? "Não tem conta?" : "Já tem conta?"}{" "}
