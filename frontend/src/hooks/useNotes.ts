@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Note, NoteLink } from "@/types";
 import { API_URL } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
@@ -7,6 +7,10 @@ export function useNotes() {
   const { token } = useAuth();
   const [notes, setNotes] = useState<Note[]>([]);
   const [loading, setLoading] = useState(false);
+  const notesRef = useRef<Note[]>([]);
+  notesRef.current = notes;
+
+  const headers = useCallback(() => ({ Authorization: `Bearer ${token}` }), [token]);
 
   const fetchNotes = useCallback(async (folderId?: string) => {
     if (!token) return;
@@ -15,91 +19,80 @@ export function useNotes() {
       const url = folderId
         ? `${API_URL}/notes?folder_id=${folderId}`
         : `${API_URL}/notes`;
-      const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+      const res = await fetch(url, { headers: headers() });
       const data = await res.json();
       setNotes(data);
     } finally {
       setLoading(false);
     }
-  }, [token]);
+  }, [token, headers]);
 
   const refreshNotes = useCallback(async () => {
     if (!token) return;
-    const res = await fetch(`${API_URL}/notes`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
+    const res = await fetch(`${API_URL}/notes`, { headers: headers() });
     const data = await res.json();
     setNotes(data);
-  }, [token]);
+  }, [token, headers]);
 
-  const searchNotes = async (q: string): Promise<Note[]> => {
+  const searchNotes = useCallback(async (q: string): Promise<Note[]> => {
+    if (!token || !q.trim()) return [];
     const res = await fetch(
       `${API_URL}/notes/search?q=${encodeURIComponent(q)}`,
-      { headers: { Authorization: `Bearer ${token}` } }
+      { headers: headers() }
     );
     return res.json();
-  };
+  }, [token, headers]);
 
-  const getNote = async (id: string): Promise<Note> => {
-    const res = await fetch(`${API_URL}/notes/${id}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
+  const getNote = useCallback(async (id: string): Promise<Note> => {
+    const cached = notesRef.current.find((n) => n.id === id);
+    if (cached) return cached;
+    const res = await fetch(`${API_URL}/notes/${id}`, { headers: headers() });
     if (!res.ok) throw new Error("Note not found");
     return res.json();
-  };
+  }, [headers]);
 
-  const createNote = async (title: string, content: string, folderId?: string) => {
+  const createNote = useCallback(async (title: string, content: string, folderId?: string) => {
     const res = await fetch(`${API_URL}/notes`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
+      headers: { "Content-Type": "application/json", ...headers() },
       body: JSON.stringify({ title, content, folder_id: folderId || null }),
     });
     if (!res.ok) throw new Error("Failed to create note");
     const note = await res.json();
-    await refreshNotes();
+    setNotes((prev) => [note, ...prev]);
     return note;
-  };
+  }, [headers]);
 
-  const updateNote = async (id: string, updates: Partial<Note>) => {
+  const updateNote = useCallback(async (id: string, updates: Partial<Note>) => {
     const res = await fetch(`${API_URL}/notes/${id}`, {
       method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
+      headers: { "Content-Type": "application/json", ...headers() },
       body: JSON.stringify(updates),
     });
     if (!res.ok) throw new Error("Failed to update note");
     const updated = await res.json();
     setNotes((prev) => prev.map((n) => (n.id === id ? updated : n)));
     return updated;
-  };
+  }, [headers]);
 
-  const deleteNote = async (id: string) => {
+  const deleteNote = useCallback(async (id: string) => {
     const res = await fetch(`${API_URL}/notes/${id}`, {
       method: "DELETE",
-      headers: { Authorization: `Bearer ${token}` },
+      headers: headers(),
     });
     if (!res.ok) throw new Error("Failed to delete note");
     setNotes((prev) => prev.filter((n) => n.id !== id));
-  };
+  }, [headers]);
 
-  const getLinks = async (id: string): Promise<NoteLink[]> => {
-    const res = await fetch(`${API_URL}/notes/${id}/links`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
+  const getLinks = useCallback(async (id: string): Promise<NoteLink[]> => {
+    const res = await fetch(`${API_URL}/notes/${id}/links`, { headers: headers() });
     return res.json();
-  };
+  }, [headers]);
 
-  const getBacklinks = async (id: string): Promise<NoteLink[]> => {
-    const res = await fetch(`${API_URL}/notes/${id}/backlinks`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
+  const getBacklinks = useCallback(async (id: string): Promise<NoteLink[]> => {
+    const res = await fetch(`${API_URL}/notes/${id}/backlinks`, { headers: headers() });
     return res.json();
-  };
+  }, [headers]);
 
   useEffect(() => {
     if (token) fetchNotes();

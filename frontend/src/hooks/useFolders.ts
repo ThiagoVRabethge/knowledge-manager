@@ -9,52 +9,52 @@ export function useFolders() {
   const [tree, setTree] = useState<FolderTree[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const headers = { Authorization: `Bearer ${token}` };
+  const headers = useCallback(() => ({ Authorization: `Bearer ${token}` }), [token]);
 
   const fetchFolders = useCallback(async () => {
     if (!token) return;
     setLoading(true);
     try {
-      const res = await fetch(`${API_URL}/folders`, { headers });
+      const res = await fetch(`${API_URL}/folders`, { headers: headers() });
       const data = await res.json();
       setFolders(data);
     } finally {
       setLoading(false);
     }
-  }, [token]);
+  }, [token, headers]);
 
   const fetchTree = useCallback(async () => {
     if (!token) return;
     try {
-      const res = await fetch(`${API_URL}/folders/tree`, { headers });
+      const res = await fetch(`${API_URL}/folders/tree`, { headers: headers() });
       const data = await res.json();
       setTree(data);
     } catch (e) {
       console.error(e);
     }
-  }, [token]);
+  }, [token, headers]);
 
-  const createFolder = async (name: string, parentId?: string) => {
+  const createFolder = useCallback(async (name: string, parentId?: string) => {
     const res = await fetch(`${API_URL}/folders`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      headers: { "Content-Type": "application/json", ...headers() },
       body: JSON.stringify({ name, parent_id: parentId || null }),
     });
     if (!res.ok) throw new Error("Failed to create folder");
     await fetchTree();
     await fetchFolders();
     return res.json();
-  };
+  }, [headers, fetchTree, fetchFolders]);
 
-  const deleteFolder = async (id: string) => {
+  const deleteFolder = useCallback(async (id: string) => {
     const res = await fetch(`${API_URL}/folders/${id}`, {
       method: "DELETE",
-      headers: { Authorization: `Bearer ${token}` },
+      headers: headers(),
     });
     if (!res.ok) throw new Error("Failed to delete folder");
     await fetchTree();
     await fetchFolders();
-  };
+  }, [headers, fetchTree, fetchFolders]);
 
   useEffect(() => {
     if (token) {

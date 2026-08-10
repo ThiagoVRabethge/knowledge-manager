@@ -19,6 +19,11 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), session: Session = D
     uc = AuthUseCase(session)
     return uc.login(form_data.username, form_data.password)
 
+@router.post("/github", response_model=Token)
+def github_login(data: dict, session: Session = Depends(get_session)):
+    uc = AuthUseCase(session)
+    return uc.github_login(data.get("code", ""))
+
 @router.get("/me", response_model=UserRead)
 def me(user: User = Depends(get_current_user)):
     return user
