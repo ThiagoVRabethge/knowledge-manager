@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Search, FileText, Folder, Trash2, Menu, X } from "lucide-react";
+import { Search, FileText, Folder, Trash2, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
@@ -92,18 +92,24 @@ export function Sidebar({
       </div>
 
       <div className="px-3 pb-2 flex items-center gap-2">
-        <CreateFolderDialog onCreate={onCreateFolder}>
-          <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium bg-muted hover:bg-muted/80 transition-colors">
-            <Folder className="h-3.5 w-3.5" />
-            Pasta
-          </button>
-        </CreateFolderDialog>
-        <CreateNoteDialog onCreate={onCreateNote}>
-          <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium bg-muted hover:bg-muted/80 transition-colors">
-            <FileText className="h-3.5 w-3.5" />
-            Nota
-          </button>
-        </CreateNoteDialog>
+        <CreateFolderDialog
+          onCreate={onCreateFolder}
+          trigger={
+            <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium bg-muted hover:bg-muted/80 transition-colors">
+              <Folder className="h-3.5 w-3.5" />
+              Pasta
+            </button>
+          }
+        />
+        <CreateNoteDialog
+          onCreate={onCreateNote}
+          trigger={
+            <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium bg-muted hover:bg-muted/80 transition-colors">
+              <FileText className="h-3.5 w-3.5" />
+              Nota
+            </button>
+          }
+        />
       </div>
 
       <ScrollArea className="flex-1 px-3">
