@@ -7,6 +7,7 @@ import { NoteEditor } from "@/components/NoteEditor";
 import { LoginScreen } from "@/components/LoginScreen";
 import { MobileConnections } from "@/components/MobileConnections";
 import { GithubSyncButton } from "@/components/GithubSyncButton";
+import { PWAInstallPrompt } from "@/components/PWAInstallPrompt";
 import { Note } from "@/types";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { FileText, Link2, Menu, LogOut } from "lucide-react";
@@ -257,6 +258,8 @@ export default function App() {
           onClose={() => setMobileConnectionsOpen(false)}
         />
       )}
+
+      <PWAInstallPrompt />
     </div>
   );
 }
