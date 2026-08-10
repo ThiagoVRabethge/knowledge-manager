@@ -15,9 +15,9 @@ import { API_URL } from "@/lib/utils";
 
 export default function App() {
   const { user, logout, login, register } = useAuth();
-  const { tree, notes: folderNotes, createFolder, deleteFolder, refresh } = useFolders();
+  const { tree, createFolder, deleteFolder, refresh } = useFolders();
   const {
-    notes, refreshNotes, searchNotes, getNote,
+    notes, searchNotes, getNote,
     createNote, updateNote, deleteNote, getLinks, getBacklinks,
   } = useNotes();
 

@@ -1,9 +1,9 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback } from "react";
 import { Github, Loader2, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { API_URL } from "@/lib/utils";
 
-const GITHUB_CLIENT_ID = import.meta.env.VITE_GITHUB_CLIENT_ID || "";
+const GITHUB_CLIENT_ID = ((import.meta as any).env?.VITE_GITHUB_CLIENT_ID as string) || "";
 
 export function GithubSyncButton() {
   const [syncing, setSyncing] = useState(false);
@@ -72,7 +72,6 @@ export function GithubSyncButton() {
 
     window.addEventListener("message", handler);
 
-    // Fallback: se o popup for fechado manualmente sem enviar code
     const checkClosed = setInterval(() => {
       if (popup.closed) {
         clearInterval(checkClosed);

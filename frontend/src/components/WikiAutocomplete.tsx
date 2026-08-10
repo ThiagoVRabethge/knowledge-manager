@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { FileText } from "lucide-react";
 import { Note } from "@/types";
 
@@ -11,7 +11,7 @@ interface Props {
 
 const WIKI_LINK_REGEX = /\[\[((?:[^\]]|\](?!\]))*)$/;
 
-export function WikiAutocomplete({ textareaRef, content, onSelect, allNotes }: Props) {
+export function WikiAutocomplete({ textareaRef, onSelect, allNotes }: Props) {
   const [suggestions, setSuggestions] = useState<Note[]>([]);
   const [visible, setVisible] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(0);

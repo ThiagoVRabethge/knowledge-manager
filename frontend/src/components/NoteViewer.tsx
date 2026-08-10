@@ -9,7 +9,7 @@ interface Props {
 export function NoteViewer({ content, onLinkClick }: Props) {
   const processedContent = content.replace(
     /\[\[((?:[^\]]|\](?!\]))+)\]\]/g,
-    (match, title) => `[${title}](#wiki-${encodeURIComponent(title)})`
+    (_match, title) => `[${title}](#wiki-${encodeURIComponent(title)})`
   );
 
   return (

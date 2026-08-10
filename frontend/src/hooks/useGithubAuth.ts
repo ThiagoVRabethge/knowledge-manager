@@ -1,6 +1,6 @@
-import { useEffect, useState, useCallback } from "react";
+import { useState, useCallback } from "react";
 
-const GITHUB_CLIENT_ID = import.meta.env.VITE_GITHUB_CLIENT_ID || "";
+const GITHUB_CLIENT_ID = ((import.meta as any).env?.VITE_GITHUB_CLIENT_ID as string) || "";
 const REDIRECT_URI = window.location.origin;
 
 export function useGithubAuth() {
