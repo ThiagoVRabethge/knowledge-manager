@@ -11,6 +11,7 @@ engine = create_engine(
 )
 
 def init_db():
+    from app.domain.models import User, Folder, Note, Collection, CollectionItem
     SQLModel.metadata.create_all(engine)
 
 def get_session():

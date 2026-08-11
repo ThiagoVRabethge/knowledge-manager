@@ -2,9 +2,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.infrastructure.database import init_db
 from app.config import settings
-from app.interfaces import auth, folders, notes, export, ai, sync
+from app.interfaces import auth, folders, notes, export, ai, sync, collections
 
-app = FastAPI(title="Knowledge Manager", version="2.2.0")
+app = FastAPI(title="Knowledge Manager", version="2.3.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -20,6 +20,7 @@ app.include_router(notes.router)
 app.include_router(export.router)
 app.include_router(ai.router)
 app.include_router(sync.router)
+app.include_router(collections.router)
 
 @app.on_event("startup")
 def on_startup():

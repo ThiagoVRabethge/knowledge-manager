@@ -1,5 +1,2 @@
 /frontend/node_modules
 /backend/knowledge.db
-.env
-.venv
-__pycache__

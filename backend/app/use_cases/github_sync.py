@@ -1,134 +1,187 @@
+from typing import List
+from fastapi import HTTPException
+from sqlmodel import Session
 import base64
 import requests
-from sqlmodel import Session
-from app.use_cases.export import ExportUseCase
-from app.infrastructure.repositories_impl import FolderRepository, NoteRepository
 
-GITHUB_API_URL = "https://api.github.com"
-REPO_NAME = "knowledge-backup"
+from app.infrastructure.repositories_impl import NoteRepository, FolderRepository, UserRepository, CollectionRepository, CollectionItemRepository
+from app.domain.models import Note, Folder, Collection, CollectionItem
+
 
 class GithubSyncUseCase:
-    def __init__(self, session: Session, access_token: str):
-        self.session = session
-        self.access_token = access_token
-        self.headers = {
-            "Authorization": f"Bearer {access_token}",
-            "Accept": "application/vnd.github+json",
-            "X-GitHub-Api-Version": "2022-11-28",
-        }
-        self.export_uc = ExportUseCase(session)
-        self.folder_repo = FolderRepository(session)
+    def __init__(self, session: Session):
         self.note_repo = NoteRepository(session)
+        self.folder_repo = FolderRepository(session)
+        self.user_repo = UserRepository(session)
+        self.collection_repo = CollectionRepository(session)
+        self.item_repo = CollectionItemRepository(session)
 
-    def _get_user_login(self) -> str:
-        resp = requests.get(f"{GITHUB_API_URL}/user", headers=self.headers, timeout=30)
-        resp.raise_for_status()
-        return resp.json()["login"]
+    def sync_to_github(self, user_id: str, access_token: str) -> dict:
+        user = self.user_repo.get_by_id(user_id)
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
 
-    def _repo_exists(self, owner: str) -> bool:
-        resp = requests.get(
-            f"{GITHUB_API_URL}/repos/{owner}/{REPO_NAME}",
-            headers=self.headers,
-            timeout=30,
-        )
-        return resp.status_code == 200
+        notes: List[Note] = self.note_repo.list_by_user(user_id)
+        folders: List[Folder] = self.folder_repo.list_by_user(user_id)
+        collections: List[Collection] = self.collection_repo.list_by_user(user_id)
 
-    def _create_repo(self, owner: str) -> dict:
-        resp = requests.post(
-            f"{GITHUB_API_URL}/user/repos",
-            headers=self.headers,
-            json={
-                "name": REPO_NAME,
-                "description": "Knowledge Manager backup — auto-synced notes",
-                "private": True,
-                "auto_init": True,
-                "gitignore_template": None,
-            },
-            timeout=30,
-        )
-        resp.raise_for_status()
-        return resp.json()
-
-    def _ensure_repo(self, owner: str) -> str:
-        if not self._repo_exists(owner):
-            self._create_repo(owner)
-        return f"{owner}/{REPO_NAME}"
-
-    def _get_file_sha(self, repo: str, path: str) -> str | None:
-        resp = requests.get(
-            f"{GITHUB_API_URL}/repos/{repo}/contents/{path}",
-            headers=self.headers,
-            timeout=30,
-        )
-        if resp.status_code == 200:
-            return resp.json().get("sha")
-        return None
-
-    def _upload_file(self, repo: str, path: str, content: str, message: str) -> dict:
-        encoded = base64.b64encode(content.encode("utf-8")).decode("utf-8")
-        sha = self._get_file_sha(repo, path)
-        body = {
-            "message": message,
-            "content": encoded,
+        headers = {
+            "Authorization": f"token {access_token}",
+            "Accept": "application/vnd.github.v3+json",
         }
-        if sha:
-            body["sha"] = sha
 
-        resp = requests.put(
-            f"{GITHUB_API_URL}/repos/{repo}/contents/{path}",
-            headers=self.headers,
-            json=body,
-            timeout=30,
-        )
-        resp.raise_for_status()
-        return resp.json()
+        user_response = requests.get("https://api.github.com/user", headers=headers)
+        if user_response.status_code != 200:
+            raise HTTPException(status_code=400, detail="Invalid GitHub token")
+        github_user = user_response.json()
 
-    def sync(self, user_id: str) -> dict:
-        owner = self._get_user_login()
-        repo = self._ensure_repo(owner)
+        repo_name = "knowledge-backup"
+        repo_url = f"https://api.github.com/repos/{github_user['login']}/{repo_name}"
 
-        folders = self.folder_repo.list_by_user(user_id)
-        notes = self.note_repo.list_by_user(user_id)
+        repo_check = requests.get(repo_url, headers=headers)
+        if repo_check.status_code == 404:
+            create_repo = requests.post(
+                "https://api.github.com/user/repos",
+                headers=headers,
+                json={"name": repo_name, "private": True, "auto_init": True},
+            )
+            if create_repo.status_code not in [201, 422]:
+                raise HTTPException(status_code=400, detail="Failed to create repository")
+
         folder_map = {f.id: f for f in folders}
+        folder_notes = {}
+        for note in notes:
+            fid = note.folder_id or "root"
+            folder_notes.setdefault(fid, []).append(note)
+
+        def get_folder_path(folder_id: str) -> str:
+            if folder_id == "root" or not folder_id:
+                return ""
+            folder = folder_map.get(folder_id)
+            if not folder:
+                return ""
+            parts = []
+            current = folder
+            while current:
+                parts.append(current.name)
+                if current.parent_id and current.parent_id in folder_map:
+                    current = folder_map[current.parent_id]
+                else:
+                    break
+            return "/".join(reversed(parts)) + "/" if parts else ""
 
         uploaded = 0
-        for note in notes:
-            path_parts = []
-            current = folder_map.get(note.folder_id) if note.folder_id else None
-            while current:
-                safe_name = "".join(c for c in current.name if c.isalnum() or c in " -_").strip()
-                path_parts.insert(0, safe_name)
-                current = folder_map.get(current.parent_id) if current.parent_id else None
+        errors = []
 
-            safe_title = "".join(c for c in note.title if c.isalnum() or c in " -_").strip()
-            filepath = "/".join(path_parts + [f"{safe_title}.md"]) if path_parts else f"{safe_title}.md"
-            content = f"# {note.title}\n\n{note.content}"
+        for folder_id, note_list in folder_notes.items():
+            folder_path = get_folder_path(folder_id)
+            for note in note_list:
+                safe_title = "".join(c for c in note.title if c.isalnum() or c in (' ', '-', '_')).rstrip()
+                safe_title = safe_title.replace(' ', '-')
+                file_path = f"{folder_path}{safe_title}.md"
+                content = note.content or ""
 
-            self._upload_file(repo, filepath, content, f"Sync: {note.title}")
-            uploaded += 1
+                existing = requests.get(
+                    f"{repo_url}/contents/{file_path}",
+                    headers=headers,
+                )
+                sha = None
+                if existing.status_code == 200:
+                    sha = existing.json().get("sha")
+
+                payload = {
+                    "message": f"Update note: {note.title}",
+                    "content": base64.b64encode(content.encode("utf-8")).decode("utf-8"),
+                }
+                if sha:
+                    payload["sha"] = sha
+
+                put_response = requests.put(
+                    f"{repo_url}/contents/{file_path}",
+                    headers=headers,
+                    json=payload,
+                )
+                if put_response.status_code in [200, 201]:
+                    uploaded += 1
+                else:
+                    errors.append(f"{file_path}: {put_response.status_code}")
+
+        # ========== COLEÇÕES ==========
+        if collections:
+            for collection in collections:
+                items: List[CollectionItem] = self.item_repo.list_by_collection(collection.id)
+                safe_name = "".join(c for c in collection.name if c.isalnum() or c in (' ', '-', '_')).rstrip()
+                safe_name = safe_name.replace(' ', '-').lower()
+                file_path = f"collections/{safe_name}.md"
+
+                md_content = f"# {collection.name}\\n\\n"
+                if items:
+                    md_content += "## Links\\n\\n"
+                    for item in items:
+                        md_content += f"- [{item.title}]({item.url})"
+                        if item.description:
+                            md_content += f" — {item.description}"
+                        md_content += "\\n"
+                else:
+                    md_content += "*Nenhum link nesta coleção.*\\n"
+
+                existing = requests.get(
+                    f"{repo_url}/contents/{file_path}",
+                    headers=headers,
+                )
+                sha = None
+                if existing.status_code == 200:
+                    sha = existing.json().get("sha")
+
+                payload = {
+                    "message": f"Update collection: {collection.name}",
+                    "content": base64.b64encode(md_content.encode("utf-8")).decode("utf-8"),
+                }
+                if sha:
+                    payload["sha"] = sha
+
+                put_response = requests.put(
+                    f"{repo_url}/contents/{file_path}",
+                    headers=headers,
+                    json=payload,
+                )
+                if put_response.status_code in [200, 201]:
+                    uploaded += 1
+                else:
+                    errors.append(f"{file_path}: {put_response.status_code}")
 
         return {
             "ok": True,
-            "repo": repo,
-            "uploaded": uploaded,
-            "url": f"https://github.com/{repo}",
+            "uploaded_files": uploaded,
+            "errors": errors,
+            "repo_url": f"https://github.com/{github_user['login']}/{repo_name}",
         }
 
-    def get_status(self) -> dict:
-        owner = self._get_user_login()
-        repo_full = f"{owner}/{REPO_NAME}"
-        resp = requests.get(
-            f"{GITHUB_API_URL}/repos/{repo_full}",
-            headers=self.headers,
-            timeout=30,
-        )
-        if resp.status_code == 200:
-            data = resp.json()
-            return {
-                "connected": True,
-                "repo_exists": True,
-                "repo": repo_full,
-                "url": data.get("html_url"),
-                "updated_at": data.get("updated_at"),
-            }
-        return {"connected": True, "repo_exists": False}
+    def get_sync_status(self, user_id: str, access_token: str) -> dict:
+        headers = {
+            "Authorization": f"token {access_token}",
+            "Accept": "application/vnd.github.v3+json",
+        }
+        user_response = requests.get("https://api.github.com/user", headers=headers)
+        if user_response.status_code != 200:
+            raise HTTPException(status_code=400, detail="Invalid GitHub token")
+
+        github_user = user_response.json()
+        repo_name = "knowledge-backup"
+        repo_url = f"https://api.github.com/repos/{github_user['login']}/{repo_name}"
+        repo_check = requests.get(repo_url, headers=headers)
+
+        if repo_check.status_code == 404:
+            return {"synced": False, "repo_exists": False}
+
+        contents = requests.get(f"{repo_url}/contents", headers=headers)
+        files = []
+        if contents.status_code == 200:
+            files = [item["name"] for item in contents.json() if item["type"] == "file"]
+
+        return {
+            "synced": True,
+            "repo_exists": True,
+            "repo_url": f"https://github.com/{github_user['login']}/{repo_name}",
+            "files": files,
+        }

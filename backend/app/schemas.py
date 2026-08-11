@@ -64,3 +64,39 @@ class AIGenerateRequest(SQLModel):
 
 class AIGenerateResponse(SQLModel):
     text: str
+
+# ========== COLEÇÕES ==========
+class CollectionCreate(SQLModel):
+    name: str
+
+class CollectionRead(SQLModel):
+    id: str
+    name: str
+    user_id: str
+    created_at: datetime
+    updated_at: datetime
+
+class CollectionUpdate(SQLModel):
+    name: Optional[str] = None
+
+class CollectionItemCreate(SQLModel):
+    title: str
+    url: str
+    description: str = ""
+
+class CollectionItemRead(SQLModel):
+    id: str
+    title: str
+    url: str
+    description: str
+    collection_id: str
+    created_at: datetime
+    updated_at: datetime
+
+class CollectionItemUpdate(SQLModel):
+    title: Optional[str] = None
+    url: Optional[str] = None
+    description: Optional[str] = None
+
+class CollectionWithItems(CollectionRead):
+    items: List[CollectionItemRead] = []

@@ -1,7 +1,7 @@
 from typing import List, Optional
 from sqlmodel import Session, select
-from app.domain.models import User, Folder, Note
-from app.domain.repositories import IUserRepository, IFolderRepository, INoteRepository
+from app.domain.models import User, Folder, Note, Collection, CollectionItem
+from app.domain.repositories import IUserRepository, IFolderRepository, INoteRepository, ICollectionRepository, ICollectionItemRepository
 
 class UserRepository(IUserRepository):
     def __init__(self, session: Session):
@@ -74,3 +74,60 @@ class NoteRepository(INoteRepository):
         self.session.commit()
         self.session.refresh(note)
         return note
+
+# ========== COLEÇÕES ==========
+class CollectionRepository(ICollectionRepository):
+    def __init__(self, session: Session):
+        self.session = session
+
+    def create(self, collection: Collection) -> Collection:
+        self.session.add(collection)
+        self.session.commit()
+        self.session.refresh(collection)
+        return collection
+
+    def get_by_id(self, collection_id: str) -> Optional[Collection]:
+        return self.session.get(Collection, collection_id)
+
+    def list_by_user(self, user_id: str) -> List[Collection]:
+        return self.session.exec(select(Collection).where(Collection.user_id == user_id)).all()
+
+    def delete(self, collection_id: str) -> None:
+        collection = self.session.get(Collection, collection_id)
+        if collection:
+            self.session.delete(collection)
+            self.session.commit()
+
+    def update(self, collection: Collection) -> Collection:
+        self.session.add(collection)
+        self.session.commit()
+        self.session.refresh(collection)
+        return collection
+
+class CollectionItemRepository(ICollectionItemRepository):
+    def __init__(self, session: Session):
+        self.session = session
+
+    def create(self, item: CollectionItem) -> CollectionItem:
+        self.session.add(item)
+        self.session.commit()
+        self.session.refresh(item)
+        return item
+
+    def get_by_id(self, item_id: str) -> Optional[CollectionItem]:
+        return self.session.get(CollectionItem, item_id)
+
+    def list_by_collection(self, collection_id: str) -> List[CollectionItem]:
+        return self.session.exec(select(CollectionItem).where(CollectionItem.collection_id == collection_id)).all()
+
+    def delete(self, item_id: str) -> None:
+        item = self.session.get(CollectionItem, item_id)
+        if item:
+            self.session.delete(item)
+            self.session.commit()
+
+    def update(self, item: CollectionItem) -> CollectionItem:
+        self.session.add(item)
+        self.session.commit()
+        self.session.refresh(item)
+        return item

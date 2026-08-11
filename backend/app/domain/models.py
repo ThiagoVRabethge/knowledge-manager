@@ -39,3 +39,26 @@ class Note(NoteBase, table=True):
     id: Optional[str] = Field(default_factory=generate_uuid, primary_key=True)
     user_id: str = Field(foreign_key="user.id", index=True)
     folder: Optional[Folder] = Relationship(back_populates="notes")
+
+# ========== COLEÇÕES ==========
+class CollectionBase(SQLModel):
+    name: str = Field(index=True)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+class Collection(CollectionBase, table=True):
+    id: Optional[str] = Field(default_factory=generate_uuid, primary_key=True)
+    user_id: str = Field(foreign_key="user.id", index=True)
+    items: List["CollectionItem"] = Relationship(back_populates="collection")
+
+class CollectionItemBase(SQLModel):
+    title: str = Field(index=True)
+    url: str
+    description: str = Field(default="")
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+class CollectionItem(CollectionItemBase, table=True):
+    id: Optional[str] = Field(default_factory=generate_uuid, primary_key=True)
+    collection_id: str = Field(foreign_key="collection.id", index=True)
+    collection: Optional[Collection] = Relationship(back_populates="items")
