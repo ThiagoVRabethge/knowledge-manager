@@ -2,6 +2,7 @@ const CACHE_NAME = "knowledge-v1";
 const STATIC_ASSETS = [
   "/",
   "/index.html",
+  "/share",
   "/manifest.json",
   "/icon-192.svg",
   "/icon-512.svg",
@@ -31,17 +32,41 @@ self.addEventListener("activate", (event) => {
   self.clients.claim();
 });
 
-// Fetch: cache-first para assets, network-first para API
+// Fetch
 self.addEventListener("fetch", (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // API requests: sempre rede, com fallback para cache se offline
-  if (url.pathname.startsWith("/auth") || url.pathname.startsWith("/notes") || url.pathname.startsWith("/folders")) {
+  // Nunca interceptar requisições não-GET (POSTs, PUTs, etc.)
+  if (request.method !== "GET") {
+    return;
+  }
+
+  // ========== SHARE TARGET ==========
+  // O navegador abre /share?title=...&url=...
+  // O cache só tem /share (sem query params)
+  // Servimos do cache ignorando os query params
+  if (url.pathname === "/share") {
+    event.respondWith(
+      caches.match("/share").then((cached) => {
+        return cached || fetch(request);
+      })
+    );
+    return;
+  }
+
+  // ========== API ==========
+  // Network-first para todas as rotas da API
+  const API_PREFIXES = [
+    "/auth", "/notes", "/folders", "/collections",
+    "/sync", "/export", "/ai", "/share"
+  ];
+  const isApi = API_PREFIXES.some((prefix) => url.pathname.startsWith(prefix));
+
+  if (isApi) {
     event.respondWith(
       fetch(request)
         .then((response) => {
-          // Clona e guarda no cache
           const clone = response.clone();
           caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
           return response;
@@ -51,7 +76,8 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Assets estáticos: cache-first
+  // ========== ASSETS ESTÁTICOS ==========
+  // Cache-first para JS, CSS, SVG, etc.
   event.respondWith(
     caches.match(request).then((cached) => {
       return (
