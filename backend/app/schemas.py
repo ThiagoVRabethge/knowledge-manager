@@ -65,7 +65,6 @@ class AIGenerateRequest(SQLModel):
 class AIGenerateResponse(SQLModel):
     text: str
 
-# ========== COLEÇÕES ==========
 class CollectionCreate(SQLModel):
     name: str
 
@@ -100,3 +99,8 @@ class CollectionItemUpdate(SQLModel):
 
 class CollectionWithItems(CollectionRead):
     items: List[CollectionItemRead] = []
+
+class ShareCreate(SQLModel):
+    title: str
+    url: str = ""
+    text: str = ""
