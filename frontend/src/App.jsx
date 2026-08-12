@@ -1,4 +1,5 @@
 import { useState, useCallback, useMemo } from "react";
+import { Routes, Route, useNavigate } from "react-router-dom";
 import { useFolders } from "@/hooks/useFolders";
 import { useNotes } from "@/hooks/useNotes";
 import { useCollections } from "@/hooks/useCollections";
@@ -14,8 +15,10 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { FileText, Link2, Menu, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { API_URL } from "@/lib/utils";
+import ShareTargetPage from "@/pages/ShareTargetPage";
 
-export default function App() {
+function HomePage() {
+  const navigate = useNavigate();
   const { user, logout, login, register } = useAuth();
   const { tree, createFolder, deleteFolder, refresh } = useFolders();
   const {
@@ -323,5 +326,14 @@ export default function App() {
 
       <PWAInstallPrompt />
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <Routes>
+      <Route path="/" element={<HomePage />} />
+      <Route path="/share" element={<ShareTargetPage />} />
+    </Routes>
   );
 }
