@@ -4,7 +4,6 @@ import { useNotes } from "@/hooks/useNotes";
 import { useCollections } from "@/hooks/useCollections";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { ArrowLeft, FileText, FolderHeart } from "lucide-react";
 
 const SHARE_STORAGE_KEY = "share_target_pending";
@@ -46,7 +45,6 @@ export default function ShareTargetPage() {
       setUrl(shareData.url);
       setText(shareData.text);
     } else {
-      // Tenta recuperar do sessionStorage (ex: após login/recarregamento)
       const stored = sessionStorage.getItem(SHARE_STORAGE_KEY);
       if (stored) {
         try {
@@ -93,13 +91,20 @@ export default function ShareTargetPage() {
     }
   };
 
+  // Se o usuário logar enquanto está nesta página (ex: login em popup),
+  // os dados já estão no state via sessionStorage, então nada a fazer.
+  // Mas garantimos que collections seja carregado quando user aparecer.
+
   if (!user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background text-foreground">
-        <div className="text-center space-y-4">
+        <div className="text-center space-y-4 max-w-sm px-4">
           <h1 className="text-2xl font-bold">Knowledge Manager</h1>
           <p className="text-muted-foreground">
-            Faça login para salvar conteúdo compartilhado.
+            Faça login para salvar o conteúdo compartilhado.
+          </p>
+          <p className="text-xs text-muted-foreground">
+            Os dados foram preservados. Após o login, volte para esta página.
           </p>
           <Button onClick={() => navigate("/")}>
             Ir para Login
