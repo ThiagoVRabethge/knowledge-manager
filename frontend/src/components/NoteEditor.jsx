@@ -6,7 +6,7 @@ import { NoteViewer } from "./NoteViewer";
 import { WikiAutocomplete } from "./WikiAutocomplete";
 import { AIGenerateDialog } from "./AIGenerateDialog";
 
-export function NoteEditor({ note, onSave, onLinkClick, allNotes }) {
+export function NoteEditor({ note, onSave, onLinkClick, onCreateNote, allNotes }) {
   const [title, setTitle] = useState(note.title);
   const [content, setContent] = useState(note.content);
   const [mode, setMode] = useState("edit");
@@ -131,8 +131,8 @@ export function NoteEditor({ note, onSave, onLinkClick, allNotes }) {
             />
             <WikiAutocomplete
               textareaRef={textareaRef}
-              content={content}
               onSelect={setContent}
+              onCreateNote={onCreateNote}
               allNotes={allNotes}
             />
           </>

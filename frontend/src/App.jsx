@@ -92,6 +92,7 @@ function HomePage() {
     const note = await createNote(title, content, folderId);
     await refresh();
     await handleSelectNote(note.id);
+    return note;
   }, [createNote, refresh, handleSelectNote]);
 
   const handleDeleteNote = useCallback(async (id) => {
@@ -144,6 +145,13 @@ function HomePage() {
       setCurrentCollection(col);
     }
   }, [deleteItem, getCollection, selectedCollectionId]);
+
+  // Wrapper para criar nota a partir do WikiAutocomplete (título apenas, sem conteúdo)
+  const handleCreateNoteFromWiki = useCallback(async (title) => {
+    const note = await createNote(title, "", null);
+    await refresh();
+    return note;
+  }, [createNote, refresh]);
 
   const allNotes = useMemo(() => notes, [notes]);
 
@@ -217,6 +225,7 @@ function HomePage() {
                   note={currentNote}
                   onSave={handleSaveNote}
                   onLinkClick={handleNavigateByTitle}
+                  onCreateNote={handleCreateNoteFromWiki}
                   allNotes={allNotes}
                 />
               </div>

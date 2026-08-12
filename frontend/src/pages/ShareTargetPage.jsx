@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ArrowLeft, FileText, FolderHeart } from "lucide-react";
 
+const SHARE_STORAGE_KEY = "share_target_pending";
+
 export default function ShareTargetPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -21,26 +23,54 @@ export default function ShareTargetPage() {
   const [mode, setMode] = useState("note");
   const [selectedCollection, setSelectedCollection] = useState("");
 
+  // Persiste/recupera dados do share para sobreviver a recarregamentos/login
   useEffect(() => {
     const t = searchParams.get("title") || "";
     const u = searchParams.get("url") || "";
     const txt = searchParams.get("text") || "";
 
-    let cleanText = txt;
-    if (u && txt.includes(u)) {
-      cleanText = txt.replace(u, "").trim();
-    }
+    if (t || u || txt) {
+      let cleanText = txt;
+      if (u && txt.includes(u)) {
+        cleanText = txt.replace(u, "").trim();
+      }
 
-    setTitle(t || u || "Conteúdo compartilhado");
-    setUrl(u);
-    setText(cleanText);
+      const shareData = {
+        title: t || u || "Conteúdo compartilhado",
+        url: u,
+        text: cleanText,
+      };
+
+      sessionStorage.setItem(SHARE_STORAGE_KEY, JSON.stringify(shareData));
+      setTitle(shareData.title);
+      setUrl(shareData.url);
+      setText(shareData.text);
+    } else {
+      // Tenta recuperar do sessionStorage (ex: após login/recarregamento)
+      const stored = sessionStorage.getItem(SHARE_STORAGE_KEY);
+      if (stored) {
+        try {
+          const data = JSON.parse(stored);
+          setTitle(data.title || "");
+          setUrl(data.url || "");
+          setText(data.text || "");
+        } catch {
+          sessionStorage.removeItem(SHARE_STORAGE_KEY);
+        }
+      }
+    }
   }, [searchParams]);
+
+  const clearShareData = () => {
+    sessionStorage.removeItem(SHARE_STORAGE_KEY);
+  };
 
   const handleSaveNote = async () => {
     setSaving(true);
     try {
       const content = url ? `${url}\n\n${text}` : text;
       await createNote(title, content, null);
+      clearShareData();
       navigate("/");
     } catch (e) {
       alert(e.message);
@@ -54,6 +84,7 @@ export default function ShareTargetPage() {
     setSaving(true);
     try {
       await createItem(selectedCollection, title, url, text);
+      clearShareData();
       navigate("/");
     } catch (e) {
       alert(e.message);
