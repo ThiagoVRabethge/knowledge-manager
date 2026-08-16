@@ -230,7 +230,7 @@ export function Sidebar({
       {mobileOpen && (
         <div className="fixed inset-0 z-50 lg:hidden">
           <div className="absolute inset-0 bg-black/50" onClick={onMobileClose} />
-          <div className="absolute left-0 top-0 h-full w-72 bg-card border-r flex flex-col shadow-xl">
+          <div className="absolute left-0 top-0 h-full w-full bg-card border-r flex flex-col shadow-xl">
             {sidebarContent}
           </div>
         </div>
