@@ -15,7 +15,6 @@ export function FolderTreeNode({
 
   return (
     <div className={cn("relative", level > 0 && "mt-0.5")}>
-      {/* Linha guia vertical para níveis aninhados */}
       {level > 0 && (
         <div
           className="absolute left-[9px] top-0 bottom-0 w-px bg-border/60"
@@ -23,13 +22,10 @@ export function FolderTreeNode({
         />
       )}
 
-      {/* Cabeçalho da pasta */}
       <div
         className={cn(
           "flex items-center gap-1.5 py-1.5 pr-2 rounded-md group transition-colors",
-          level === 0
-            ? "hover:bg-accent/40"
-            : "hover:bg-accent/30",
+          level === 0 ? "hover:bg-accent/40" : "hover:bg-accent/30",
           level > 0 && "ml-5"
         )}
       >
@@ -100,10 +96,8 @@ export function FolderTreeNode({
         </div>
       </div>
 
-      {/* Conteúdo expandido: subpastas + notas */}
       {isExpanded && (
         <div className="relative">
-          {/* Subpastas */}
           {node.children.length > 0 && (
             <div className="pb-1">
               {node.children.map((child) => (
@@ -124,12 +118,10 @@ export function FolderTreeNode({
             </div>
           )}
 
-          {/* Separador sutil entre subpastas e notas */}
           {node.children.length > 0 && node.notes.length > 0 && (
             <div className="mx-5 my-1 h-px bg-border/40" />
           )}
 
-          {/* Notas da pasta */}
           {node.notes.length > 0 && (
             <div className="space-y-0.5 pb-1">
               {node.notes.map((note) => (
@@ -140,7 +132,6 @@ export function FolderTreeNode({
                     level > 0 ? "ml-5" : "ml-5"
                   )}
                 >
-                  {/* Conector visual da nota à hierarquia */}
                   <div className="absolute left-[9px] top-1/2 -translate-y-1/2 w-2.5 h-px bg-border/50" />
 
                   <button
@@ -155,9 +146,10 @@ export function FolderTreeNode({
                     <FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground/60" />
                     <span className="truncate">{note.title}</span>
                   </button>
+                  {/* CORREÇÃO: visível em mobile/touch, só some no hover em desktop */}
                   <button
                     onClick={() => onDeleteNote(note.id)}
-                    className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-accent transition-opacity"
+                    className="opacity-100 md:opacity-0 md:group-hover:opacity-100 p-1 rounded hover:bg-accent transition-opacity"
                     title="Excluir nota"
                   >
                     <Trash2 className="h-3 w-3 text-muted-foreground" />

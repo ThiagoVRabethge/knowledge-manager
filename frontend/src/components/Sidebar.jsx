@@ -158,9 +158,10 @@ export function Sidebar({
                       <Bookmark className="h-3.5 w-3.5 shrink-0" />
                       <span className="truncate">{collection.name}</span>
                     </button>
+                    {/* CORREÇÃO: visível em mobile/touch */}
                     <button
                       onClick={() => onDeleteCollection(collection.id)}
-                      className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-accent transition-opacity"
+                      className="opacity-100 md:opacity-0 md:group-hover:opacity-100 p-1 rounded hover:bg-accent transition-opacity"
                       title="Excluir coleção"
                     >
                       <Trash2 className="h-3 w-3 text-muted-foreground" />
@@ -192,9 +193,10 @@ export function Sidebar({
                     <FileText className="h-3.5 w-3.5 shrink-0" />
                     <span className="truncate">{note.title}</span>
                   </button>
+                  {/* CORREÇÃO: visível em mobile/touch */}
                   <button
                     onClick={() => onDeleteNote(note.id)}
-                    className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-accent transition-opacity"
+                    className="opacity-100 md:opacity-0 md:group-hover:opacity-100 p-1 rounded hover:bg-accent transition-opacity"
                   >
                     <Trash2 className="h-3 w-3 text-muted-foreground" />
                   </button>
