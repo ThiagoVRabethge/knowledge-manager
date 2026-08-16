@@ -1,4 +1,5 @@
 const CACHE_NAME = "knowledge-v1";
+
 const STATIC_ASSETS = [
   "/",
   "/index.html",
@@ -8,7 +9,8 @@ const STATIC_ASSETS = [
   "/icon-512.svg",
 ];
 
-// Instalação: cacheia assets estáticos
+const IS_DEV = self.location.hostname === "localhost" || self.location.hostname === "127.0.0.1";
+
 self.addEventListener("install", (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
@@ -18,7 +20,6 @@ self.addEventListener("install", (event) => {
   self.skipWaiting();
 });
 
-// Ativação: limpa caches antigos
 self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches.keys().then((cacheNames) => {
@@ -32,35 +33,32 @@ self.addEventListener("activate", (event) => {
   self.clients.claim();
 });
 
-// Fetch
 self.addEventListener("fetch", (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // Nunca interceptar requisições não-GET (POSTs, PUTs, etc.)
+  if (IS_DEV) {
+    const isViteAsset = url.pathname.startsWith("/src/") ||
+      url.pathname.startsWith("/@") ||
+      url.pathname.endsWith(".jsx") ||
+      url.pathname.endsWith(".tsx") ||
+      url.pathname.endsWith(".css") ||
+      url.pathname.endsWith(".js");
+    
+    if (isViteAsset || request.mode === "navigate") {
+      return;
+    }
+  }
+
   if (request.method !== "GET") {
     return;
   }
 
-  // ========== SHARE TARGET ==========
-  // O navegador abre /share?title=...&url=...
-  // O cache só tem /share (sem query params)
-  // Servimos do cache ignorando os query params
-  if (url.pathname === "/share") {
-    event.respondWith(
-      caches.match("/share").then((cached) => {
-        return cached || fetch(request);
-      })
-    );
-    return;
-  }
-
-  // ========== API ==========
-  // Network-first para todas as rotas da API
   const API_PREFIXES = [
     "/auth", "/notes", "/folders", "/collections",
     "/sync", "/export", "/ai", "/share"
   ];
+
   const isApi = API_PREFIXES.some((prefix) => url.pathname.startsWith(prefix));
 
   if (isApi) {
@@ -76,18 +74,40 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // ========== ASSETS ESTÁTICOS ==========
-  // Cache-first para JS, CSS, SVG, etc.
-  event.respondWith(
-    caches.match(request).then((cached) => {
-      return (
-        cached ||
-        fetch(request).then((response) => {
+  const SPA_ROUTES = ["/", "/share"];
+  const isSpaRoute = SPA_ROUTES.some((route) => url.pathname === route);
+
+  if (isSpaRoute) {
+    event.respondWith(
+      caches.match("/index.html").then((cached) => {
+        return cached || fetch(request);
+      })
+    );
+    return;
+  }
+
+  if (IS_DEV) {
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
           const clone = response.clone();
           caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
           return response;
         })
-      );
-    })
-  );
+        .catch(() => caches.match(request))
+    );
+  } else {
+    event.respondWith(
+      caches.match(request).then((cached) => {
+        return (
+          cached ||
+          fetch(request).then((response) => {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
+            return response;
+          })
+        );
+      })
+    );
+  }
 });

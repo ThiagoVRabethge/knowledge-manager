@@ -13,21 +13,32 @@ export default defineConfig({
     },
   },
   server: {
-    // Desabilita cache do navegador durante desenvolvimento
     headers: {
-      'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+      'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
       'Pragma': 'no-cache',
       'Expires': '0',
+      'Surrogate-Control': 'no-store',
     },
-    // Força HMR a recarregar sempre que possível
     hmr: {
       overlay: true,
     },
+    // Força o Vite a servir arquivos sempre do disco, nunca da memória cacheada
+    watch: {
+      usePolling: true,
+    },
   },
-  // Força re-otimização das dependências a cada inicialização (limpa cache interno)
   optimizeDeps: {
     force: true,
   },
-  // Garante que builds de desenvolvimento não usem cache de módulos
   cacheDir: '.vite_cache',
+  build: {
+    // Gera hashes diferentes a cada build para invalidar cache do navegador
+    rollupOptions: {
+      output: {
+        entryFileNames: 'assets/[name]-[hash].js',
+        chunkFileNames: 'assets/[name]-[hash].js',
+        assetFileNames: 'assets/[name]-[hash][extname]',
+      },
+    },
+  },
 })

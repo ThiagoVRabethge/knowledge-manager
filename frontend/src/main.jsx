@@ -16,6 +16,19 @@ if (window.opener && params.get("state") === "knowledge-sync" && params.get("cod
 
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
+    if (import.meta.env.DEV) {
+      navigator.serviceWorker.getRegistrations().then((registrations) => {
+        registrations.forEach((reg) => {
+          reg.unregister();
+          console.log("SW unregistered (dev mode)");
+        });
+        caches.keys().then((names) => {
+          names.forEach((name) => caches.delete(name));
+        });
+      });
+      return;
+    }
+
     navigator.serviceWorker
       .register("/sw.js")
       .then((registration) => {

@@ -134,6 +134,7 @@ export function NoteEditor({ note, onSave, onLinkClick, onCreateNote, allNotes }
               onSelect={setContent}
               onCreateNote={onCreateNote}
               allNotes={allNotes}
+              folderId={note.folder_id}
             />
           </>
         ) : (
