@@ -3,7 +3,7 @@ import { FileText, Plus } from "lucide-react";
 
 const WIKI_LINK_REGEX = /\[\[((?:[^\]]|\](?!\]))*)$/;
 
-export function WikiAutocomplete({ textareaRef, onSelect, onCreateNote, allNotes }) {
+export function WikiAutocomplete({ textareaRef, onSelect, onCreateNote, allNotes, folderId }) {
   const [suggestions, setSuggestions] = useState([]);
   const [visible, setVisible] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -121,8 +121,6 @@ export function WikiAutocomplete({ textareaRef, onSelect, onCreateNote, allNotes
     if (!match) return;
 
     const wikiStart = match.index;
-    // Se o caractere imediatamente antes do [[ for "[", removemos ele.
-    // Isso acontece quando o título começa com "[" (ex: "[estrutura] filosofia")
     const hasExtraBracket = wikiStart > 0 && text[wikiStart - 1] === "[";
     const startPos = hasExtraBracket ? wikiStart - 1 : wikiStart;
 
@@ -139,7 +137,8 @@ export function WikiAutocomplete({ textareaRef, onSelect, onCreateNote, allNotes
   const handleCreateNewNote = async (title) => {
     if (!onCreateNote) return;
     try {
-      const newNote = await onCreateNote(title);
+      // Passa folderId para criar na mesma pasta da nota atual
+      const newNote = await onCreateNote(title, folderId);
       if (newNote && newNote.title) {
         insertWikiLink(newNote.title);
       }

@@ -146,9 +146,9 @@ function HomePage() {
     }
   }, [deleteItem, getCollection, selectedCollectionId]);
 
-  // Wrapper para criar nota a partir do WikiAutocomplete (título apenas, sem conteúdo)
-  const handleCreateNoteFromWiki = useCallback(async (title) => {
-    const note = await createNote(title, "", null);
+  // Wrapper para criar nota a partir do WikiAutocomplete (herda folder_id da nota atual)
+  const handleCreateNoteFromWiki = useCallback(async (title, folderId) => {
+    const note = await createNote(title, "", folderId);
     await refresh();
     return note;
   }, [createNote, refresh]);

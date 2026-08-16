@@ -54,19 +54,11 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  if (url.pathname === "/share") {
-    event.respondWith(
-      caches.match("/share").then((cached) => {
-        return cached || fetch(request);
-      })
-    );
-    return;
-  }
-
   const API_PREFIXES = [
     "/auth", "/notes", "/folders", "/collections",
     "/sync", "/export", "/ai", "/share"
   ];
+
   const isApi = API_PREFIXES.some((prefix) => url.pathname.startsWith(prefix));
 
   if (isApi) {
@@ -78,6 +70,18 @@ self.addEventListener("fetch", (event) => {
           return response;
         })
         .catch(() => caches.match(request))
+    );
+    return;
+  }
+
+  const SPA_ROUTES = ["/", "/share"];
+  const isSpaRoute = SPA_ROUTES.some((route) => url.pathname === route);
+
+  if (isSpaRoute) {
+    event.respondWith(
+      caches.match("/index.html").then((cached) => {
+        return cached || fetch(request);
+      })
     );
     return;
   }
