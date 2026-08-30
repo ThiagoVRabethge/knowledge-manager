@@ -1,11 +1,18 @@
+import base64
 from typing import List
+
+import requests
 from fastapi import HTTPException
 from sqlmodel import Session
-import base64
-import requests
 
-from app.infrastructure.repositories_impl import NoteRepository, FolderRepository, UserRepository, CollectionRepository, CollectionItemRepository
-from app.domain.models import Note, Folder, Collection, CollectionItem
+from app.domain.models import Collection, CollectionItem, Folder, Note, User
+from app.infrastructure.repositories_impl import (
+    CollectionItemRepository,
+    CollectionRepository,
+    FolderRepository,
+    NoteRepository,
+    UserRepository,
+)
 
 
 class GithubSyncUseCase:
@@ -46,7 +53,9 @@ class GithubSyncUseCase:
                 json={"name": repo_name, "private": True, "auto_init": True},
             )
             if create_repo.status_code not in [201, 422]:
-                raise HTTPException(status_code=400, detail="Failed to create repository")
+                raise HTTPException(
+                    status_code=400, detail="Failed to create repository"
+                )
 
         folder_map = {f.id: f for f in folders}
         folder_notes = {}
@@ -76,8 +85,10 @@ class GithubSyncUseCase:
         for folder_id, note_list in folder_notes.items():
             folder_path = get_folder_path(folder_id)
             for note in note_list:
-                safe_title = "".join(c for c in note.title if c.isalnum() or c in (' ', '-', '_')).rstrip()
-                safe_title = safe_title.replace(' ', '-')
+                safe_title = "".join(
+                    c for c in note.title if c.isalnum() or c in (" ", "-", "_")
+                ).rstrip()
+                safe_title = safe_title.replace(" ", "-")
                 file_path = f"{folder_path}{safe_title}.md"
                 content = note.content or ""
 
@@ -91,7 +102,9 @@ class GithubSyncUseCase:
 
                 payload = {
                     "message": f"Update note: {note.title}",
-                    "content": base64.b64encode(content.encode("utf-8")).decode("utf-8"),
+                    "content": base64.b64encode(content.encode("utf-8")).decode(
+                        "utf-8"
+                    ),
                 }
                 if sha:
                     payload["sha"] = sha
@@ -109,9 +122,13 @@ class GithubSyncUseCase:
         # ========== COLEÇÕES ==========
         if collections:
             for collection in collections:
-                items: List[CollectionItem] = self.item_repo.list_by_collection(collection.id)
-                safe_name = "".join(c for c in collection.name if c.isalnum() or c in (' ', '-', '_')).rstrip()
-                safe_name = safe_name.replace(' ', '-').lower()
+                items: List[CollectionItem] = self.item_repo.list_by_collection(
+                    collection.id
+                )
+                safe_name = "".join(
+                    c for c in collection.name if c.isalnum() or c in (" ", "-", "_")
+                ).rstrip()
+                safe_name = safe_name.replace(" ", "-").lower()
                 file_path = f"collections/{safe_name}.md"
 
                 md_content = f"# {collection.name}\\n\\n"
@@ -135,7 +152,9 @@ class GithubSyncUseCase:
 
                 payload = {
                     "message": f"Update collection: {collection.name}",
-                    "content": base64.b64encode(md_content.encode("utf-8")).decode("utf-8"),
+                    "content": base64.b64encode(md_content.encode("utf-8")).decode(
+                        "utf-8"
+                    ),
                 }
                 if sha:
                     payload["sha"] = sha
@@ -156,6 +175,21 @@ class GithubSyncUseCase:
             "errors": errors,
             "repo_url": f"https://github.com/{github_user['login']}/{repo_name}",
         }
+
+    def sync_user_data(self, user_id: str) -> dict:
+        user = self.user_repo.get_by_id(user_id)
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        if not user.github_access_token:
+            return {"ok": False, "detail": "No GitHub access token configured"}
+        return self.sync_to_github(user_id, user.github_access_token)
+
+    def set_github_token(self, user_id: str, access_token: str) -> User:
+        user = self.user_repo.get_by_id(user_id)
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        user.github_access_token = access_token
+        return self.user_repo.update(user)
 
     def get_sync_status(self, user_id: str, access_token: str) -> dict:
         headers = {

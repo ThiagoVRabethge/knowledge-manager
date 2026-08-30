@@ -1,20 +1,27 @@
 from datetime import datetime
 from typing import List
+
 from fastapi import HTTPException
 from sqlmodel import Session
+
 from app.domain.models import Note
 from app.domain.services import WikiLinkService
 from app.infrastructure.repositories_impl import NoteRepository
-from app.schemas import NoteCreate, NoteUpdate, NoteLink
+from app.schemas import NoteCreate, NoteLink, NoteUpdate
+from app.use_cases.github_sync import GithubSyncUseCase
+
 
 class NoteUseCase:
     def __init__(self, session: Session):
         self.repo = NoteRepository(session)
         self.wiki_service = WikiLinkService()
+        self.github_sync = GithubSyncUseCase(session)
 
     def create(self, data: NoteCreate, user_id: str) -> Note:
         note = Note(**data.model_dump(), user_id=user_id)
-        return self.repo.create(note)
+        created = self.repo.create(note)
+        self._sync_github(user_id)
+        return created
 
     def list(self, user_id: str, folder_id: str = None) -> List[Note]:
         notes = self.repo.list_by_user(user_id)
@@ -25,7 +32,11 @@ class NoteUseCase:
     def search(self, user_id: str, q: str) -> List[Note]:
         notes = self.repo.list_by_user(user_id)
         q_lower = q.lower()
-        return [n for n in notes if q_lower in n.title.lower() or q_lower in n.content.lower()]
+        return [
+            n
+            for n in notes
+            if q_lower in n.title.lower() or q_lower in n.content.lower()
+        ]
 
     def get(self, note_id: str, user_id: str) -> Note:
         note = self.repo.get_by_id(note_id)
@@ -38,11 +49,14 @@ class NoteUseCase:
         for key, value in data.model_dump(exclude_unset=True).items():
             setattr(note, key, value)
         note.updated_at = datetime.utcnow()
-        return self.repo.update(note)
+        updated = self.repo.update(note)
+        self._sync_github(user_id)
+        return updated
 
     def delete(self, note_id: str, user_id: str) -> None:
         note = self.get(note_id, user_id)
         self.repo.delete(note.id)
+        self._sync_github(user_id)
 
     def get_links(self, note_id: str, user_id: str) -> List[NoteLink]:
         note = self.get(note_id, user_id)
@@ -55,3 +69,10 @@ class NoteUseCase:
         all_notes = self.repo.list_by_user(user_id)
         backlinks = self.wiki_service.find_backlinks(note, all_notes)
         return [NoteLink(id=n.id, title=n.title) for n in backlinks]
+
+    def _sync_github(self, user_id: str) -> None:
+        try:
+            self.github_sync.sync_user_data(user_id)
+        except Exception:
+            # Silenciosamente ignora erros de sincronização para não interromper a operação principal
+            pass

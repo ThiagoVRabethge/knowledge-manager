@@ -1,13 +1,19 @@
 import secrets
 from datetime import timedelta
+
 from fastapi import HTTPException, status
 from sqlmodel import Session
+
 from app.config import settings
 from app.domain.models import User
+from app.infrastructure.github_auth import (
+    exchange_code_for_token,
+    get_github_user_email,
+)
 from app.infrastructure.repositories_impl import UserRepository
-from app.infrastructure.security import get_password_hash, create_access_token
-from app.infrastructure.github_auth import exchange_code_for_token, get_github_user_email
+from app.infrastructure.security import create_access_token, get_password_hash
 from app.schemas import Token
+
 
 class AuthUseCase:
     def __init__(self, session: Session):
@@ -18,11 +24,15 @@ class AuthUseCase:
             access_token = exchange_code_for_token(code)
             gh_user = get_github_user_email(access_token)
         except Exception as e:
-            raise HTTPException(status_code=400, detail=f"GitHub authentication failed: {str(e)}")
+            raise HTTPException(
+                status_code=400, detail=f"GitHub authentication failed: {str(e)}"
+            )
 
         email = gh_user.get("email")
         if not email:
-            raise HTTPException(status_code=400, detail="Email not available from GitHub")
+            raise HTTPException(
+                status_code=400, detail="Email not available from GitHub"
+            )
 
         user = self.repo.get_by_email(email)
         if not user:
@@ -30,9 +40,14 @@ class AuthUseCase:
             hashed_password = get_password_hash(secrets.token_urlsafe(32))
             user = User(
                 email=email,
-                hashed_password=hashed_password
+                hashed_password=hashed_password,
+                github_access_token=access_token,  # salva token
             )
             self.repo.create(user)
+        else:
+            # Atualiza token do GitHub
+            user.github_access_token = access_token
+            self.repo.update(user)
 
         token = create_access_token(
             data={"sub": user.id},
