@@ -11,7 +11,7 @@ export function NoteEditor({ note, onSave, onLinkClick, onCreateNote, allNotes }
 
   const [content, setContent] = useState(note.content);
 
-  const [mode, setMode] = useState("edit");
+  const [mode, setMode] = useState("preview");
 
   const [saving, setSaving] = useState(false);
 
