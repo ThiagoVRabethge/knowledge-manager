@@ -1,11 +1,11 @@
-import { useState } from "react";
-import { Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter,
   DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
 import { API_URL } from "@/lib/utils";
+import { Sparkles } from "lucide-react";
+import { useState } from "react";
 
 export function AIGenerateDialog({ context, onInsert }) {
   const [open, setOpen] = useState(false);
@@ -19,10 +19,8 @@ export function AIGenerateDialog({ context, onInsert }) {
     try {
       const res = await fetch(`${API_URL}/ai/generate`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ prompt, context }),
       });
       if (!res.ok) throw new Error("Falha na geração");

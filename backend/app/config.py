@@ -12,6 +12,13 @@ class Settings(BaseSettings):
     github_client_id: str = Field(default="", description="GitHub OAuth Client ID")
     github_client_secret: str = Field(default="", description="GitHub OAuth Client Secret")
 
+    # Cookie settings
+    cookie_name: str = Field(default="access_token")
+    cookie_secure: bool = Field(default=False)
+    cookie_domain: str | None = Field(default=None)
+    cookie_httponly: bool = Field(default=True)
+    cookie_samesite: str = Field(default="lax")
+
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"

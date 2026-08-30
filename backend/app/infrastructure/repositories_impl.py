@@ -1,7 +1,16 @@
 from typing import List, Optional
+
 from sqlmodel import Session, select
-from app.domain.models import User, Folder, Note, Collection, CollectionItem
-from app.domain.repositories import IUserRepository, IFolderRepository, INoteRepository, ICollectionRepository, ICollectionItemRepository
+
+from app.domain.models import Collection, CollectionItem, Folder, Note, User
+from app.domain.repositories import (
+    ICollectionItemRepository,
+    ICollectionRepository,
+    IFolderRepository,
+    INoteRepository,
+    IUserRepository,
+)
+
 
 class UserRepository(IUserRepository):
     def __init__(self, session: Session):
@@ -18,6 +27,13 @@ class UserRepository(IUserRepository):
 
     def get_by_id(self, user_id: str) -> Optional[User]:
         return self.session.get(User, user_id)
+
+    def update(self, user: User) -> User:
+        self.session.add(user)
+        self.session.commit()
+        self.session.refresh(user)
+        return user
+
 
 class FolderRepository(IFolderRepository):
     def __init__(self, session: Session):
@@ -47,6 +63,7 @@ class FolderRepository(IFolderRepository):
         self.session.refresh(folder)
         return folder
 
+
 class NoteRepository(INoteRepository):
     def __init__(self, session: Session):
         self.session = session
@@ -75,6 +92,7 @@ class NoteRepository(INoteRepository):
         self.session.refresh(note)
         return note
 
+
 # ========== COLEÇÕES ==========
 class CollectionRepository(ICollectionRepository):
     def __init__(self, session: Session):
@@ -90,7 +108,9 @@ class CollectionRepository(ICollectionRepository):
         return self.session.get(Collection, collection_id)
 
     def list_by_user(self, user_id: str) -> List[Collection]:
-        return self.session.exec(select(Collection).where(Collection.user_id == user_id)).all()
+        return self.session.exec(
+            select(Collection).where(Collection.user_id == user_id)
+        ).all()
 
     def delete(self, collection_id: str) -> None:
         collection = self.session.get(Collection, collection_id)
@@ -103,6 +123,7 @@ class CollectionRepository(ICollectionRepository):
         self.session.commit()
         self.session.refresh(collection)
         return collection
+
 
 class CollectionItemRepository(ICollectionItemRepository):
     def __init__(self, session: Session):
@@ -118,7 +139,9 @@ class CollectionItemRepository(ICollectionItemRepository):
         return self.session.get(CollectionItem, item_id)
 
     def list_by_collection(self, collection_id: str) -> List[CollectionItem]:
-        return self.session.exec(select(CollectionItem).where(CollectionItem.collection_id == collection_id)).all()
+        return self.session.exec(
+            select(CollectionItem).where(CollectionItem.collection_id == collection_id)
+        ).all()
 
     def delete(self, item_id: str) -> None:
         item = self.session.get(CollectionItem, item_id)
