@@ -5,68 +5,49 @@ const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
-  const [token, setToken] = useState(localStorage.getItem("token"));
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (token) {
-      fetch(`${API_URL}/auth/me`, {
-        headers: { Authorization: `Bearer ${token}` },
+    // Verifica se já está autenticado via cookie
+    fetch(`${API_URL}/auth/me`, {
+      credentials: "include",  // envia cookies
+    })
+      .then((r) => {
+        if (!r.ok) throw new Error("Invalid token");
+        return r.json();
       })
-        .then((r) => {
-          if (!r.ok) throw new Error("Invalid token");
-          return r.json();
-        })
-        .then((data) => setUser(data))
-        .catch(() => {
-          localStorage.removeItem("token");
-          setToken(null);
-        })
-        .finally(() => setLoading(false));
-    } else {
-      setLoading(false);
-    }
-  }, [token]);
+      .then((data) => setUser(data))
+      .catch(() => setUser(null))
+      .finally(() => setLoading(false));
+  }, []);
 
-  const login = async (email, password) => {
-    const form = new URLSearchParams();
-    form.append("username", email);
-    form.append("password", password);
-    const res = await fetch(`${API_URL}/auth/login`, {
+  const login = async (code) => {
+    const res = await fetch(`${API_URL}/auth/github`, {
       method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: form,
+      headers: { "Content-Type": "application/json" },
+      credentials: "include", // importante para receber cookie
+      body: JSON.stringify({ code }),
     });
     if (!res.ok) {
       const err = await res.json();
       throw new Error(err.detail || "Login failed");
     }
-    const data = await res.json();
-    localStorage.setItem("token", data.access_token);
-    setToken(data.access_token);
+    // Após login, recarrega o usuário
+    const meRes = await fetch(`${API_URL}/auth/me`, { credentials: "include" });
+    const data = await meRes.json();
+    setUser(data);
   };
 
-  const register = async (email, password) => {
-    const res = await fetch(`${API_URL}/auth/register`, {
+  const logout = async () => {
+    await fetch(`${API_URL}/auth/logout`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
+      credentials: "include",
     });
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.detail || "Registration failed");
-    }
-    await login(email, password);
-  };
-
-  const logout = () => {
-    localStorage.removeItem("token");
-    setToken(null);
     setUser(null);
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, login, register, logout, loading }}>
+    <AuthContext.Provider value={{ user, login, logout, loading }}>
       {children}
     </AuthContext.Provider>
   );

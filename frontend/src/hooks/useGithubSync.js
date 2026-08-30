@@ -2,13 +2,10 @@ import { API_URL } from "@/lib/utils";
 
 export function useGithubSync() {
   const syncUpload = async (accessToken) => {
-    const token = localStorage.getItem("token");
     const res = await fetch(`${API_URL}/sync/github`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
       body: JSON.stringify({ access_token: accessToken }),
     });
     if (!res.ok) {
@@ -19,10 +16,9 @@ export function useGithubSync() {
   };
 
   const getStatus = async (accessToken) => {
-    const token = localStorage.getItem("token");
     const res = await fetch(
       `${API_URL}/sync/github/status?access_token=${encodeURIComponent(accessToken)}`,
-      { headers: { Authorization: `Bearer ${token}` } }
+      { credentials: "include" }
     );
     if (!res.ok) throw new Error("Failed to get status");
     return res.json();

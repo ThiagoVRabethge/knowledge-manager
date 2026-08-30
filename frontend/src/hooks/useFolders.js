@@ -3,64 +3,63 @@ import { API_URL } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 
 export function useFolders() {
-  const { token } = useAuth();
+  const { user } = useAuth();
   const [folders, setFolders] = useState([]);
   const [tree, setTree] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  const headers = useCallback(() => ({ Authorization: `Bearer ${token}` }), [token]);
-
   const fetchFolders = useCallback(async () => {
-    if (!token) return;
+    if (!user) return;
     setLoading(true);
     try {
-      const res = await fetch(`${API_URL}/folders`, { headers: headers() });
+      const res = await fetch(`${API_URL}/folders`, { credentials: "include" });
       const data = await res.json();
       setFolders(data);
     } finally {
       setLoading(false);
     }
-  }, [token, headers]);
+  }, [user]);
 
   const fetchTree = useCallback(async () => {
-    if (!token) return;
+    if (!user) return;
     try {
-      const res = await fetch(`${API_URL}/folders/tree`, { headers: headers() });
+      const res = await fetch(`${API_URL}/folders/tree`, { credentials: "include" });
       const data = await res.json();
       setTree(data);
     } catch (e) {
       console.error(e);
     }
-  }, [token, headers]);
+  }, [user]);
 
   const createFolder = useCallback(async (name, parentId) => {
     const res = await fetch(`${API_URL}/folders`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", ...headers() },
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
       body: JSON.stringify({ name, parent_id: parentId || null }),
     });
     if (!res.ok) throw new Error("Failed to create folder");
     await fetchTree();
     await fetchFolders();
     return res.json();
-  }, [headers, fetchTree, fetchFolders]);
+  }, [fetchTree, fetchFolders]);
 
   const deleteFolder = useCallback(async (id) => {
     const res = await fetch(`${API_URL}/folders/${id}`, {
       method: "DELETE",
-      headers: headers(),
+      credentials: "include",
     });
     if (!res.ok) throw new Error("Failed to delete folder");
     await fetchTree();
     await fetchFolders();
-  }, [headers, fetchTree, fetchFolders]);
+  }, [fetchTree, fetchFolders]);
 
   useEffect(() => {
-    if (token) {
+    if (user) {
       fetchFolders();
       fetchTree();
     }
-  }, [token, fetchFolders, fetchTree]);
+  }, [user, fetchFolders, fetchTree]);
 
   return { folders, tree, loading, createFolder, deleteFolder, refresh: fetchTree };
 }

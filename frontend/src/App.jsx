@@ -72,7 +72,7 @@ function HomePage() {
       return;
     }
     const res = await fetch(`${API_URL}/notes`, {
-      headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+      credentials: "include",
     });
     const allNotes = await res.json();
     const remoteFound = allNotes.find((n) => n.title.toLowerCase() === title.toLowerCase());
