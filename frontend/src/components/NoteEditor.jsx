@@ -5,6 +5,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { AIGenerateDialog } from "./AIGenerateDialog";
 import { NoteViewer } from "./NoteViewer";
 import { WikiAutocomplete } from "./WikiAutocomplete";
+import { useTemplates } from "@/hooks/useTemplates";
+import { LayoutTemplate } from "lucide-react"; // ou outro ícone adequado
 
 export function NoteEditor({ note, onSave, onLinkClick, onCreateNote, allNotes }) {
   const [title, setTitle] = useState(note.title);
@@ -22,6 +24,10 @@ export function NoteEditor({ note, onSave, onLinkClick, onCreateNote, allNotes }
   const onSaveRef = useRef(onSave);
 
   onSaveRef.current = onSave;
+
+  const { templates } = useTemplates();
+
+  const [templatesOpen, setTemplatesOpen] = useState(false);
 
   useEffect(() => {
     setTitle(note.title);
@@ -195,6 +201,26 @@ export function NoteEditor({ note, onSave, onLinkClick, onCreateNote, allNotes }
     });
   };
 
+  const handleInsertTemplate = useCallback((templateContent) => {
+    const ta = textareaRef.current;
+    if (!ta) {
+      setContent((prev) => prev + "\n\n" + templateContent);
+      return;
+    }
+    const start = ta.selectionStart;
+    const before = content.substring(0, start);
+    const after = content.substring(start);
+    const newContent = before + "\n\n" + templateContent + after;
+    setContent(newContent);
+    setMode("edit");
+    setTimeout(() => {
+      const newPos = start + templateContent.length + 2;
+      ta.setSelectionRange(newPos, newPos);
+      ta.focus();
+    }, 0);
+    setTemplatesOpen(false);
+  }, [content]);
+
   return (
     <div className="flex flex-col h-full">
       <div className="flex items-center justify-between px-4 sm:px-6 py-3 border-b gap-2">
@@ -215,6 +241,41 @@ export function NoteEditor({ note, onSave, onLinkClick, onCreateNote, allNotes }
           </div>
 
           <AIGenerateDialog context={content} onInsert={handleInsertAI} />
+
+          <div className="relative">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7"
+              title="Inserir template"
+              onClick={() => setTemplatesOpen(!templatesOpen)}
+            >
+              <LayoutTemplate className="h-3.5 w-3.5" />
+            </Button>
+            {templatesOpen && (
+              <>
+                <div className="fixed inset-0 z-10" onClick={() => setTemplatesOpen(false)} />
+                <div className="absolute right-0 top-full mt-1 w-56 rounded-md border bg-popover shadow-md z-20">
+                  <div className="p-1">
+                    {templates.length === 0 && (
+                      <p className="text-xs text-muted-foreground px-2 py-1.5">
+                        Nenhum template criado.
+                      </p>
+                    )}
+                    {templates.map((template) => (
+                      <button
+                        key={template.id}
+                        onClick={() => handleInsertTemplate(template.content)}
+                        className="w-full text-left px-2 py-1.5 text-sm rounded hover:bg-accent hover:text-accent-foreground transition-colors"
+                      >
+                        {template.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
 
           <Button
             variant="ghost"

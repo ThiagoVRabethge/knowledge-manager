@@ -2,7 +2,14 @@ from typing import List, Optional
 
 from sqlmodel import Session, select
 
-from app.domain.models import Collection, CollectionItem, Folder, Note, User
+from app.domain.models import (
+    Collection,
+    CollectionItem,
+    Folder,
+    Note,
+    NoteTemplate,
+    User,
+)
 from app.domain.repositories import (
     ICollectionItemRepository,
     ICollectionRepository,
@@ -154,3 +161,34 @@ class CollectionItemRepository(ICollectionItemRepository):
         self.session.commit()
         self.session.refresh(item)
         return item
+
+
+class NoteTemplateRepository:
+    def __init__(self, session: Session):
+        self.session = session
+
+    def create(self, template: NoteTemplate) -> NoteTemplate:
+        self.session.add(template)
+        self.session.commit()
+        self.session.refresh(template)
+        return template
+
+    def list_by_user(self, user_id: str) -> List[NoteTemplate]:
+        return self.session.exec(
+            select(NoteTemplate).where(NoteTemplate.user_id == user_id)
+        ).all()
+
+    def get_by_id(self, template_id: str) -> Optional[NoteTemplate]:
+        return self.session.get(NoteTemplate, template_id)
+
+    def update(self, template: NoteTemplate) -> NoteTemplate:
+        self.session.add(template)
+        self.session.commit()
+        self.session.refresh(template)
+        return template
+
+    def delete(self, template_id: str) -> None:
+        template = self.session.get(NoteTemplate, template_id)
+        if template:
+            self.session.delete(template)
+            self.session.commit()
