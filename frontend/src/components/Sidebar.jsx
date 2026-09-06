@@ -11,6 +11,7 @@ import { ThemeToggle } from "./ThemeToggle";
 import { ExportButton } from "./ExportButton";
 import { GithubSyncButton } from "./GithubSyncButton";
 import { cn } from "@/lib/utils";
+import { TemplatesSection } from "./TemplatesSection";
 
 export function Sidebar({
   tree, notes, collections, selectedNoteId, selectedCollectionId, expandedIds,
@@ -170,6 +171,9 @@ export function Sidebar({
                 ))}
               </div>
             )}
+
+            {/* ========== TEMPLATES ========== */}
+            <TemplatesSection />
 
             {/* Separador entre coleções e notas */}
             {collections.length > 0 && (notes.length > 0 || tree.length > 0) && (
