@@ -1,11 +1,9 @@
-import { API_URL } from "@/lib/utils";
+import { API_URL, authFetch } from "@/lib/utils";
 
 export function useGithubSync() {
   const syncUpload = async (accessToken) => {
-    const res = await fetch(`${API_URL}/sync/github`, {
+    const res = await authFetch(`${API_URL}/sync/github`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
       body: JSON.stringify({ access_token: accessToken }),
     });
     if (!res.ok) {
@@ -16,9 +14,8 @@ export function useGithubSync() {
   };
 
   const getStatus = async (accessToken) => {
-    const res = await fetch(
-      `${API_URL}/sync/github/status?access_token=${encodeURIComponent(accessToken)}`,
-      { credentials: "include" }
+    const res = await authFetch(
+      `${API_URL}/sync/github/status?access_token=${encodeURIComponent(accessToken)}`
     );
     if (!res.ok) throw new Error("Failed to get status");
     return res.json();

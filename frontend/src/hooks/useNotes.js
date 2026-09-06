@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { API_URL } from "@/lib/utils";
+import { API_URL, authFetch } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 
 export function useNotes() {
@@ -16,7 +16,7 @@ export function useNotes() {
       const url = folderId
         ? `${API_URL}/notes?folder_id=${folderId}`
         : `${API_URL}/notes`;
-      const res = await fetch(url, { credentials: "include" });
+      const res = await authFetch(url);
       const data = await res.json();
       setNotes(data);
     } finally {
@@ -26,33 +26,28 @@ export function useNotes() {
 
   const refreshNotes = useCallback(async () => {
     if (!user) return;
-    const res = await fetch(`${API_URL}/notes`, { credentials: "include" });
+    const res = await authFetch(`${API_URL}/notes`);
     const data = await res.json();
     setNotes(data);
   }, [user]);
 
   const searchNotes = useCallback(async (q) => {
     if (!user || !q.trim()) return [];
-    const res = await fetch(
-      `${API_URL}/notes/search?q=${encodeURIComponent(q)}`,
-      { credentials: "include" }
-    );
+    const res = await authFetch(`${API_URL}/notes/search?q=${encodeURIComponent(q)}`);
     return res.json();
   }, [user]);
 
   const getNote = useCallback(async (id) => {
     const cached = notesRef.current.find((n) => n.id === id);
     if (cached) return cached;
-    const res = await fetch(`${API_URL}/notes/${id}`, { credentials: "include" });
+    const res = await authFetch(`${API_URL}/notes/${id}`);
     if (!res.ok) throw new Error("Note not found");
     return res.json();
   }, []);
 
   const createNote = useCallback(async (title, content, folderId) => {
-    const res = await fetch(`${API_URL}/notes`, {
+    const res = await authFetch(`${API_URL}/notes`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
       body: JSON.stringify({ title, content, folder_id: folderId || null }),
     });
     if (!res.ok) throw new Error("Failed to create note");
@@ -62,10 +57,8 @@ export function useNotes() {
   }, []);
 
   const updateNote = useCallback(async (id, updates) => {
-    const res = await fetch(`${API_URL}/notes/${id}`, {
+    const res = await authFetch(`${API_URL}/notes/${id}`, {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
       body: JSON.stringify(updates),
     });
     if (!res.ok) throw new Error("Failed to update note");
@@ -75,21 +68,20 @@ export function useNotes() {
   }, []);
 
   const deleteNote = useCallback(async (id) => {
-    const res = await fetch(`${API_URL}/notes/${id}`, {
+    const res = await authFetch(`${API_URL}/notes/${id}`, {
       method: "DELETE",
-      credentials: "include",
     });
     if (!res.ok) throw new Error("Failed to delete note");
     setNotes((prev) => prev.filter((n) => n.id !== id));
   }, []);
 
   const getLinks = useCallback(async (id) => {
-    const res = await fetch(`${API_URL}/notes/${id}/links`, { credentials: "include" });
+    const res = await authFetch(`${API_URL}/notes/${id}/links`);
     return res.json();
   }, []);
 
   const getBacklinks = useCallback(async (id) => {
-    const res = await fetch(`${API_URL}/notes/${id}/backlinks`, { credentials: "include" });
+    const res = await authFetch(`${API_URL}/notes/${id}/backlinks`);
     return res.json();
   }, []);
 

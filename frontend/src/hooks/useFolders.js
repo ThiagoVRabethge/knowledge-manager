@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { API_URL } from "@/lib/utils";
+import { API_URL, authFetch } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 
 export function useFolders() {
@@ -12,7 +12,7 @@ export function useFolders() {
     if (!user) return;
     setLoading(true);
     try {
-      const res = await fetch(`${API_URL}/folders`, { credentials: "include" });
+      const res = await authFetch(`${API_URL}/folders`);
       const data = await res.json();
       setFolders(data);
     } finally {
@@ -23,7 +23,7 @@ export function useFolders() {
   const fetchTree = useCallback(async () => {
     if (!user) return;
     try {
-      const res = await fetch(`${API_URL}/folders/tree`, { credentials: "include" });
+      const res = await authFetch(`${API_URL}/folders/tree`);
       const data = await res.json();
       setTree(data);
     } catch (e) {
@@ -32,10 +32,8 @@ export function useFolders() {
   }, [user]);
 
   const createFolder = useCallback(async (name, parentId) => {
-    const res = await fetch(`${API_URL}/folders`, {
+    const res = await authFetch(`${API_URL}/folders`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
       body: JSON.stringify({ name, parent_id: parentId || null }),
     });
     if (!res.ok) throw new Error("Failed to create folder");
@@ -45,9 +43,8 @@ export function useFolders() {
   }, [fetchTree, fetchFolders]);
 
   const deleteFolder = useCallback(async (id) => {
-    const res = await fetch(`${API_URL}/folders/${id}`, {
+    const res = await authFetch(`${API_URL}/folders/${id}`, {
       method: "DELETE",
-      credentials: "include",
     });
     if (!res.ok) throw new Error("Failed to delete folder");
     await fetchTree();

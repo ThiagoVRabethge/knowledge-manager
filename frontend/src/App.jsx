@@ -1,81 +1,118 @@
-import { useState, useCallback, useMemo } from "react";
-import { Routes, Route, useNavigate } from "react-router-dom";
-import { useFolders } from "@/hooks/useFolders";
-import { useNotes } from "@/hooks/useNotes";
-import { useCollections } from "@/hooks/useCollections";
-import { useAuth } from "@/contexts/AuthContext";
-import { Sidebar } from "@/components/Sidebar";
 import { CollectionItemsPanel } from "@/components/CollectionItemsPanel";
-import { NoteEditor } from "@/components/NoteEditor";
+import { GithubSyncButton } from "@/components/GithubSyncButton";
 import { LoginScreen } from "@/components/LoginScreen";
 import { MobileConnections } from "@/components/MobileConnections";
-import { GithubSyncButton } from "@/components/GithubSyncButton";
+import { NoteEditor } from "@/components/NoteEditor";
 import { PWAInstallPrompt } from "@/components/PWAInstallPrompt";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { FileText, Link2, Menu, LogOut } from "lucide-react";
+import { Sidebar } from "@/components/Sidebar";
 import { Button } from "@/components/ui/button";
-import { API_URL } from "@/lib/utils";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { useAuth } from "@/contexts/AuthContext";
+import { useCollections } from "@/hooks/useCollections";
+import { useFolders } from "@/hooks/useFolders";
+import { useNotes } from "@/hooks/useNotes";
+import { API_URL, authFetch } from "@/lib/utils";
 import ShareTargetPage from "@/pages/ShareTargetPage";
+import { FileText, Link2, LogOut, Menu } from "lucide-react";
+import { useCallback, useMemo, useState } from "react";
+import { Route, Routes, useNavigate } from "react-router-dom";
 
 function HomePage() {
   const navigate = useNavigate();
+
   const { user, logout, login, register } = useAuth();
+
   const { tree, createFolder, deleteFolder, refresh } = useFolders();
+
   const {
-    notes, searchNotes, getNote,
-    createNote, updateNote, deleteNote, getLinks, getBacklinks,
+    notes, 
+    searchNotes, 
+    getNote,
+    createNote, 
+    updateNote, 
+    deleteNote, 
+    getLinks, 
+    getBacklinks,
   } = useNotes();
+  
   const {
-    collections, createCollection, deleteCollection, getCollection, createItem, deleteItem,
+    collections, 
+    createCollection, 
+    deleteCollection, 
+    getCollection, 
+    createItem, 
+    deleteItem,
   } = useCollections();
 
   const [selectedNoteId, setSelectedNoteId] = useState();
+
   const [currentNote, setCurrentNote] = useState(null);
+
   const [links, setLinks] = useState({ links: [], backlinks: [] });
+
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+
   const [mobileConnectionsOpen, setMobileConnectionsOpen] = useState(false);
+
   const [expandedIds, setExpandedIds] = useState(new Set());
 
   const [selectedCollectionId, setSelectedCollectionId] = useState();
+
   const [currentCollection, setCurrentCollection] = useState(null);
 
   const handleToggleExpand = useCallback((id) => {
     setExpandedIds((prev) => {
       const next = new Set(prev);
+
       if (next.has(id)) next.delete(id);
+
       else next.add(id);
+
       return next;
     });
   }, []);
 
   const clearSelection = useCallback(() => {
     setSelectedNoteId(undefined);
+
     setCurrentNote(null);
+
     setSelectedCollectionId(undefined);
+
     setCurrentCollection(null);
   }, []);
 
   const handleSelectNote = useCallback(async (noteId) => {
     clearSelection();
+
     setSelectedNoteId(noteId);
+
     setMobileSidebarOpen(false);
+
     const note = await getNote(noteId);
+
     setCurrentNote(note);
+
     const [l, b] = await Promise.all([getLinks(noteId), getBacklinks(noteId)]);
+
     setLinks({ links: l, backlinks: b });
   }, [getNote, getLinks, getBacklinks, clearSelection]);
 
   const handleNavigateByTitle = useCallback(async (title) => {
     const found = notes.find((n) => n.title.toLowerCase() === title.toLowerCase());
+
     if (found) {
       await handleSelectNote(found.id);
+
       return;
     }
-    const res = await fetch(`${API_URL}/notes`, {
-      credentials: "include",
-    });
+
+    const res = await authFetch(`${API_URL}/notes`);
+
     const allNotes = await res.json();
+
     const remoteFound = allNotes.find((n) => n.title.toLowerCase() === title.toLowerCase());
+
     if (remoteFound) {
       await handleSelectNote(remoteFound.id);
     }
@@ -83,21 +120,29 @@ function HomePage() {
 
   const handleSaveNote = useCallback(async (id, updates) => {
     const updated = await updateNote(id, updates);
+
     setCurrentNote(updated);
+
     const [l, b] = await Promise.all([getLinks(id), getBacklinks(id)]);
+
     setLinks({ links: l, backlinks: b });
   }, [updateNote, getLinks, getBacklinks]);
 
   const handleCreateNote = useCallback(async (title, content, folderId) => {
     const note = await createNote(title, content, folderId);
+
     await refresh();
+
     await handleSelectNote(note.id);
+
     return note;
   }, [createNote, refresh, handleSelectNote]);
 
   const handleDeleteNote = useCallback(async (id) => {
     await deleteNote(id);
+
     await refresh();
+
     if (selectedNoteId === id) {
       clearSelection();
     }
@@ -113,9 +158,13 @@ function HomePage() {
 
   const handleSelectCollection = useCallback(async (collectionId) => {
     clearSelection();
+
     setSelectedCollectionId(collectionId);
+
     setMobileSidebarOpen(false);
+
     const col = await getCollection(collectionId);
+
     setCurrentCollection(col);
   }, [getCollection, clearSelection]);
 
@@ -125,6 +174,7 @@ function HomePage() {
 
   const handleDeleteCollection = useCallback(async (id) => {
     await deleteCollection(id);
+
     if (selectedCollectionId === id) {
       clearSelection();
     }
@@ -132,24 +182,29 @@ function HomePage() {
 
   const handleAddLink = useCallback(async (collectionId, title, url, description) => {
     await createItem(collectionId, title, url, description);
+
     if (selectedCollectionId === collectionId) {
       const col = await getCollection(collectionId);
+
       setCurrentCollection(col);
     }
   }, [createItem, getCollection, selectedCollectionId]);
 
   const handleDeleteLink = useCallback(async (itemId) => {
     await deleteItem(itemId);
+
     if (selectedCollectionId) {
       const col = await getCollection(selectedCollectionId);
+
       setCurrentCollection(col);
     }
   }, [deleteItem, getCollection, selectedCollectionId]);
 
-  // Wrapper para criar nota a partir do WikiAutocomplete (herda folder_id da nota atual)
   const handleCreateNoteFromWiki = useCallback(async (title, folderId) => {
     const note = await createNote(title, "", folderId);
+
     await refresh();
+
     return note;
   }, [createNote, refresh]);
 
